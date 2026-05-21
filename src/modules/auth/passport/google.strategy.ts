@@ -1,6 +1,6 @@
 import { PassportStrategy } from "@nestjs/passport";
 import { Strategy, VerifyCallback } from "passport-google-oauth20";
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import type { ConfigType } from "@nestjs/config";
 import { AuthService } from "../auth.service";
 import googleOauthConfig from "src/config/google-oauth.config";
@@ -31,8 +31,14 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         profile: any,
         done: VerifyCallback
     ) {
+        const email = profile.emails?.[0]?.value;
+
+        if (!email || !profile.id) {
+            throw new UnauthorizedException('Google profile is missing required information');
+        }
+
         const user = await this.authService.validateGoogleUser({
-            email: profile.emails[0].value,
+            email,
             name: profile.displayName,
             providerId: profile.id,
         });

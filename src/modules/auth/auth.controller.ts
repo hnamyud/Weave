@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Post, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  InternalServerErrorException,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { Public, ResponseMessage } from 'src/common/decorators/customize.decorator';
@@ -96,7 +106,9 @@ export class AuthController {
     @Req() req: Request & { user: any },
     @Res({ passthrough: true }) res: Response
   ) {
-    const request = await this.authService.login(req.user, req, res);
-    res.redirect(this.configService.get('BROWSER_REDIRECT_URI') + request.accessToken);
+    const loginResult = await this.authService.login(req.user, req, res);
+    const redirectUrl = this.authService.buildBrowserRedirectUrl(loginResult.accessToken);
+
+    return res.redirect(redirectUrl);
   }
 }

@@ -10,12 +10,15 @@ import { JwtModule } from '@nestjs/jwt';
 import googleOauthConfig from 'src/config/google-oauth.config';
 import { UsersModule } from '../users/users.module';
 import { TokensModule } from '../tokens/tokens.module';
+import { RedisModule } from 'src/common/cache/redis.module';
+import { PasswordService } from './password.service';
 
 @Module({
   imports: [
     TokensModule,
     UsersModule,
     PrismaModule,
+    RedisModule,
     PassportModule,
     ConfigModule.forFeature(googleOauthConfig),
     JwtModule.registerAsync({
@@ -30,6 +33,7 @@ import { TokensModule } from '../tokens/tokens.module';
   controllers: [AuthController],
   providers: [
     AuthService,
+    PasswordService,
     JwtStrategy,
     GoogleStrategy
   ],

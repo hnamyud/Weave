@@ -16,6 +16,7 @@ export type AppAbility = PureAbility<[Action, AppSubjects], PrismaQuery>;
 @Injectable()
 export class CaslAbilityFactory {
     createForUser(user: UserInterface) {
-        
+        const { build } = new AbilityBuilder<AppAbility>(createPrismaAbility);
+        return build();
     }
 }

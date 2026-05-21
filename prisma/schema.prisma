@@ -36,6 +36,9 @@ model User {
   refreshTokens        RefreshToken[]
   workspaceMemberships WorkspaceMember[]
   ownedWorkspaces      Workspace[]           @relation("WorkspaceOwner")
+  createdWorkspaceInvites WorkspaceInvite[]         @relation("WorkspaceInviteCreator")
+  receivedWorkspaceInvites WorkspaceInvite[]        @relation("WorkspaceInviteRecipient")
+  workspaceInviteResponses WorkspaceInviteResponse[]
 
   @@map("users")
 }
@@ -69,6 +72,7 @@ model Workspace {
   notificationSettings NotificationSetting[]
   notifications        Notification[]
   members              WorkspaceMember[]
+  invites              WorkspaceInvite[]
   owner                User                  @relation("WorkspaceOwner", fields: [ownerId], references: [id])
 
   @@map("workspaces")
@@ -85,6 +89,45 @@ model WorkspaceMember {
 
   @@unique([workspaceId, userId])
   @@map("workspace_members")
+}
+
+model WorkspaceInvite {
+  id              String        @id @db.Uuid
+  workspaceId     String        @map("workspace_id") @db.Uuid
+  type            WorkspaceInviteType
+  tokenHash       String?       @unique @map("token_hash")
+  invitedUserId   String?       @map("invited_user_id") @db.Uuid
+  role            WorkspaceRole @default(MEMBER)
+  createdById     String        @map("created_by_id") @db.Uuid
+  expiresAt       DateTime      @map("expires_at")
+  revokedAt       DateTime?     @map("revoked_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  workspace       Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy       User          @relation("WorkspaceInviteCreator", fields: [createdById], references: [id])
+  invitedUser     User?         @relation("WorkspaceInviteRecipient", fields: [invitedUserId], references: [id], onDelete: Cascade)
+  responses       WorkspaceInviteResponse[]
+
+  @@index([workspaceId])
+  @@index([createdById])
+  @@index([invitedUserId])
+  @@index([expiresAt])
+  @@map("workspace_invites")
+}
+
+model WorkspaceInviteResponse {
+  id        String                        @id @db.Uuid
+  inviteId  String                        @map("invite_id") @db.Uuid
+  userId    String                        @map("user_id") @db.Uuid
+  status    WorkspaceInviteResponseStatus
+  createdAt DateTime                      @default(now()) @map("created_at")
+
+  invite    WorkspaceInvite               @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  user      User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([inviteId, userId])
+  @@index([userId])
+  @@map("workspace_invite_responses")
 }
 
 model Conversation {
@@ -325,4 +368,14 @@ enum NotificationType {
   THREAD_REPLY
   DM
   BOT
+}
+
+enum WorkspaceInviteType {
+  DIRECT
+  LINK
+}
+
+enum WorkspaceInviteResponseStatus {
+  ACCEPTED
+  DENIED
 }

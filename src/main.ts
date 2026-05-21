@@ -7,8 +7,9 @@ import cookieParser from 'cookie-parser';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PoliciesGuard } from './common/guards/policy.guard';
 import { CaslAbilityFactory } from './common/casl/ability.factory';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -48,6 +49,59 @@ async function bootstrap() {
 
   // Transform response from controller
   app.useGlobalInterceptors(new TransformInterceptor(reflector));
+
+  //Config versoning
+  app.setGlobalPrefix('api');
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: '1',
+  });
+
+  // Swagger setup
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Weave API')
+    .setDescription(`
+      ## Weave Backend API Documentation
+      Weave is a real-time collaboration and messaging platform API.
+
+      ### 🔐 Authentication
+      - Most endpoints require JWT Bearer token
+      - Get an access token from \`/api/v1/auth/login\`
+      - Use "Authorize" button below to set token globally
+      
+      ### 📱 API Versioning
+      - All endpoints are prefixed with \`/api/v1/\`
+      - Default version: v1
+      `)
+    .setVersion('1.0')
+    .addServer('http://localhost:8080', 'Development Server')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token (without Bearer prefix)',
+        in: 'header'
+      },
+      'access-token',
+    )
+    .build();
+
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  // Setup Swagger UI with options
+  SwaggerModule.setup('docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true, // Remember JWT token
+      tagsSorter: 'alpha',        // Sort tags alphabetically
+      operationsSorter: 'alpha',  // Sort operations alphabetically  
+      docExpansion: 'none',       // Collapse all sections initially
+      filter: true,               // Enable search filter
+      showRequestHeaders: true,   // Show request headers
+    },
+    customSiteTitle: 'Weave API Docs', // Custom title
+    customfavIcon: '/favicon.ico',               // Custom favicon
+  });
   
   app.enableShutdownHooks()
   const port = configService.get('PORT')

@@ -1,23 +1,18 @@
-import { BadRequestException, Injectable, OnModuleInit, UnauthorizedException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { User } from '@prisma/client';
 import { UsersService } from '../users/users.service';
 import { PrismaService } from 'prisma/prisma.service';
 import { TokensService } from '../tokens/tokens.service';
-import ms, { StringValue } from 'ms';
 import { Response, Request } from 'express';
 import { RegisterUserDto } from '../users/dto/create-user.dto';
 import { UserInterface } from 'src/shared/interfaces/users.interface';
-import { createHash } from 'crypto';
 import { UAParser } from 'ua-parser-js';
 import { v7 as uuidv7 } from 'uuid';
 
 @Injectable()
-export class AuthService implements OnModuleInit {
-    private refreshSecret: string;
-    private refreshExpiresIn: StringValue;
-    private refreshExpiresInMs: number;
-
+export class AuthService {
     constructor(
         private jwtService: JwtService,
         private configService: ConfigService,
@@ -26,20 +21,6 @@ export class AuthService implements OnModuleInit {
         private refreshTokenService: TokensService,
         // @Inject('REDIS_CLIENT') private redisClient: Redis
     ) { }
-
-    onModuleInit() {
-        const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
-        const refreshExpiresIn = this.configService.get<string>('JWT_REFRESH_EXPIRED') as StringValue | undefined;
-        const refreshExpiresInMs = refreshExpiresIn ? ms(refreshExpiresIn) : undefined;
-
-        if (!refreshSecret || !refreshExpiresIn || typeof refreshExpiresInMs !== 'number') {
-            throw new Error('JWT refresh token config is invalid');
-        }
-
-        this.refreshSecret = refreshSecret;
-        this.refreshExpiresIn = refreshExpiresIn;
-        this.refreshExpiresInMs = refreshExpiresInMs;
-    }
 
     async validateUser(email: string, pass: string): Promise<any> {
         const user = await this.userService.findOneByEmail(email);
@@ -52,74 +33,21 @@ export class AuthService implements OnModuleInit {
         return safeUser;
     }
 
-    async createRefreshToken(payload: any) {
-        const refreshToken = this.jwtService.sign(payload, {
-            secret: this.refreshSecret,
-            expiresIn: this.refreshExpiresIn as any,
-        });
-        return refreshToken;
-    }
-
     async processToken(refreshToken: string, response: Response) {
-        try {
-            const payload = this.jwtService.verify(refreshToken, {
-                secret: this.refreshSecret,
-            }) as {
-                id: string;
-                email: string;
-            };
+        const tokenResult = await this.refreshTokenService.processToken(refreshToken);
 
-            const tokenHash = await this.hashToken(refreshToken);
+        response.cookie('refresh_token', tokenResult.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            path: '/',
+            maxAge: this.refreshTokenService.getRefreshTokenMaxAge(),
+        });
 
-            const storedToken = await this.refreshTokenService.findValidToken(tokenHash);
-
-            if (!storedToken || storedToken.userId !== payload.id) {
-                throw new BadRequestException('Refresh token không hợp lệ!');
-            }
-
-            const newPayload = {
-                sub: 'Access token',
-                iss: 'Backend-core',
-                id: payload.id,
-                email: payload.email,
-            };
-
-            const newRefreshToken = await this.createRefreshToken(newPayload);
-            const newRefreshTokenHash = await this.hashToken(newRefreshToken);
-
-            await this.refreshTokenService.rotateToken({
-                oldTokenId: storedToken.id,
-                userId: payload.id,
-                newTokenHash: newRefreshTokenHash,
-                expiresAt: this.getRefreshTokenExpiresAt(),
-            });
-
-            response.cookie('refresh_token', newRefreshToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-                path: '/',
-                maxAge: this.refreshExpiresInMs,
-            });
-
-            return {
-                accessToken: this.jwtService.sign(newPayload),
-                user: {
-                    id: payload.id,
-                    email: payload.email,
-                },
-            };
-        } catch {
-            throw new BadRequestException('Refresh token không hợp lệ!');
-        }
-    }
-
-    hashToken(token: string) {
-        return createHash('sha256').update(token).digest('hex');
-    }
-
-    getRefreshTokenExpiresAt() {
-        return new Date(Date.now() + this.refreshExpiresInMs);
+        return {
+            accessToken: tokenResult.accessToken,
+            user: tokenResult.user,
+        };
     }
 
     async register(user: RegisterUserDto) {
@@ -140,13 +68,13 @@ export class AuthService implements OnModuleInit {
             email,
         };
 
-        const refreshToken = await this.createRefreshToken(payload);
+        const refreshToken = await this.refreshTokenService.createRefreshToken(payload);
         const parser = new UAParser(request.headers['user-agent']);
 
-        await this.refreshTokenService.createRefreshToken({
+        await this.refreshTokenService.createRefreshTokenRecord({
             userId: id,
-            tokenHash: this.hashToken(refreshToken),
-            expiresAt: this.getRefreshTokenExpiresAt(),
+            tokenHash: this.refreshTokenService.hashToken(refreshToken),
+            expiresAt: this.refreshTokenService.getRefreshTokenExpiresAt(),
             deviceInfo: {
                 browser: parser.getBrowser().name,
                 browserVersion: parser.getBrowser().version,
@@ -161,7 +89,7 @@ export class AuthService implements OnModuleInit {
             secure: process.env.NODE_ENV === 'production',
             sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             path: '/',
-            maxAge: this.refreshExpiresInMs,
+            maxAge: this.refreshTokenService.getRefreshTokenMaxAge(),
         });
 
         return {
@@ -176,9 +104,7 @@ export class AuthService implements OnModuleInit {
     async logout(refreshToken: string | undefined, response: Response) {
         try {
             if (refreshToken) {
-                const tokenHash = this.hashToken(refreshToken);
-
-                await this.refreshTokenService.revokeToken(tokenHash);
+                await this.refreshTokenService.revokeRefreshToken(refreshToken);
             }
 
             response.clearCookie('refresh_token', {
@@ -222,7 +148,9 @@ export class AuthService implements OnModuleInit {
         });
 
         if (oauthAccount) {
-            return oauthAccount.user;
+            this.ensureActiveOAuthUser(oauthAccount.user);
+            const { password, ...safeUser } = oauthAccount.user;
+            return safeUser;
         }
 
         const existingUser = await this.userService.findOneByEmail(email);
@@ -238,14 +166,40 @@ export class AuthService implements OnModuleInit {
                 },
             });
 
-            return existingUser;
+            const { password, ...safeUser } = existingUser;
+            return safeUser;
         }
 
         // User mới hoàn toàn
-        return await this.userService.createGoogleUser({
+        const newGoogleUser = await this.userService.createGoogleUser({
             email,
             name,
             providerId,
         });
+        const { password, ...safeUser } = newGoogleUser;
+
+        return safeUser;
+    }
+
+    private ensureActiveOAuthUser(user: User) {
+        if (user.deletedAt) {
+            throw new UnauthorizedException('Google account is not available');
+        }
+    }
+
+    buildBrowserRedirectUrl(accessToken: string) {
+        const browserRedirectUri = this.configService.get<string>('BROWSER_REDIRECT_URI');
+
+        if (!browserRedirectUri) {
+            throw new InternalServerErrorException('Browser redirect URI is not configured');
+        }
+
+        const redirectUrl = new URL(browserRedirectUri);
+        redirectUrl.searchParams.delete('token');
+        redirectUrl.hash = new URLSearchParams({
+            access_token: accessToken,
+        }).toString();
+
+        return redirectUrl.toString();
     }
 }

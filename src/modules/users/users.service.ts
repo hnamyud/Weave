@@ -29,6 +29,15 @@ export class UsersService {
         });
     }
 
+    async findOneById(id: string) {
+        return this.prisma.user.findUnique({
+            where: {
+                id: id,
+                deletedAt: null,
+            }
+        });
+    }
+
     async registerUser(user: RegisterUserDto) {
         const { username, email, password, displayName } = user;
         const isExisted = await this.findOneByEmail(email);
@@ -101,54 +110,23 @@ export class UsersService {
         });
     }
 
-    async changePassword(
-        id: string,
-        oldPassword: string,
-        newPassword: string
-    ) {
-        const user = await this.prisma.user.findUnique({
-            where: {
-                id: id
-            }
-        });
-        if (!user) {
-            throw new BadRequestException(`User: ${id} does not exist`);
-        }
-        if (!user.password) {
-            throw new BadRequestException(
-                'Your account is registered via Google OAuth, you can set up a password in your profile settings to enable local login and password change features.',
-            );
-        }
-        // Kiểm tra mật khẩu cũ
-        const isMatch = await compare(oldPassword, user.password);
-        if (!isMatch) {
-            throw new BadRequestException('Old password is incorrect');
-        }
-        // Kiểm tra mật khẩu mới có khác mật khẩu cũ không
-        const isSamePassword = await compare(newPassword, user.password);
-        if (isSamePassword) {
-            throw new BadRequestException('New password cannot be the same as the old password');
-        }
-        const hashPassword = await this.getHashPassword(newPassword);
-        await this.prisma.user.update({
-            where: {
-                id: user.id
-            },
-            data: {
-                password: hashPassword
-            }
-        });
-        return {
-            id: user.id,
-            email: user.email,
-        };
-    }
-
     async updateUserPassword(email: string, newPassword: string) {
         const hashPassword = await this.getHashPassword(newPassword);
         return await this.prisma.user.update({
             where: {
                 email: email
+            },
+            data: {
+                password: hashPassword
+            }
+        });
+    }
+
+    async updateUserPasswordById(id: string, newPassword: string) {
+        const hashPassword = await this.getHashPassword(newPassword);
+        return await this.prisma.user.update({
+            where: {
+                id: id
             },
             data: {
                 password: hashPassword
