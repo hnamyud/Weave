@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post } from '@nestjs/common';
+import { Body, Controller, Param, Post, Patch } from '@nestjs/common';
 import { WorkspaceInviteService } from './workspace_invite.service';
 import { GetUser, ResponseMessage } from '../../common/decorators/customize.decorator';
 import { CreateDirectInviteDto, CreateInviteLinkDto } from './dto/invite.dto';
@@ -123,7 +123,7 @@ export class WorkspaceInviteController {
     return this.workspaceInviteService.denyInvite(dto, user.id);
   }
 
-  @Post(':inviteId/revoke')
+  @Patch(':inviteId/revoke')
   @ResponseMessage("Revoke invite successfully!")
   async revokeInvite(
     @Param('inviteId') inviteId: string,

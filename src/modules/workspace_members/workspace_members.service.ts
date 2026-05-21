@@ -24,12 +24,19 @@ export class WorkspaceMembersService {
         const pageSize = this.parsePositiveInteger(limit, 10, 'limit');
         const offset = (page - 1) * pageSize;
 
+        const where = {
+            workspaceId: workspaceId,
+            workspace: {
+                isDeleted: false,
+            },
+        };
+
         const totalItems = await this.prisma.workspaceMember.count({
-            where: { workspaceId: workspaceId }
+            where
         });
         const totalPages = Math.ceil(totalItems / pageSize);
         const result = await this.prisma.workspaceMember.findMany({
-            where: { workspaceId: workspaceId },
+            where,
             skip: offset,
             take: pageSize,
             orderBy: { joinedAt: 'desc' },

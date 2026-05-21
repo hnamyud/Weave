@@ -21,21 +21,25 @@ export class WorkspaceInviteService {
 
     async createDirectInvite(dto: CreateDirectInviteInput, createdById: string) {
         await this.ensureWorkspaceMember(dto.workspaceId, createdById);
+        await this.ensureUserIsNotWorkspaceMember(dto.workspaceId, dto.invitedUserId);
+        await this.ensureNoPendingDirectInvite(dto.workspaceId, dto.invitedUserId);
         const expiresInDays = this.getInviteExpiresInDays();
 
-        const newDirectInvite = await this.prisma.workspaceInvite.create({
-            data: {
-                id: uuidv7(),
-                workspaceId: dto.workspaceId,
-                type: WorkspaceInviteType.Direct,
-                invitedUserId: dto.invitedUserId,
-                role: WorkspaceRole.MEMBER,
-                createdById: createdById,
-                expiresAt: new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000),
-            },
-        });
-
-        return newDirectInvite;
+        try {
+            return await this.prisma.workspaceInvite.create({
+                data: {
+                    id: uuidv7(),
+                    workspaceId: dto.workspaceId,
+                    type: WorkspaceInviteType.Direct,
+                    invitedUserId: dto.invitedUserId,
+                    role: WorkspaceRole.MEMBER,
+                    createdById: createdById,
+                    expiresAt: new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000),
+                },
+            });
+        } catch (error) {
+            this.handleInviteMutationError(error);
+        }
     }
 
     async createInviteLink(dto: CreateInviteLinkInput, createdById: string) {
@@ -45,17 +49,21 @@ export class WorkspaceInviteService {
         const rawToken = randomBytes(16).toString('base64url');
         const tokenHash = createHash('sha256').update(rawToken).digest('hex');
         const inviteUrl = `${this.getInviteBaseUrl()}${rawToken}`;
-        await this.prisma.workspaceInvite.create({
-            data: {
-                id: uuidv7(),
-                workspaceId: dto.workspaceId,
-                type: WorkspaceInviteType.Link,
-                tokenHash,
-                role: WorkspaceRole.MEMBER,
-                createdById: createdById,
-                expiresAt: dto.expiresAt,
-            },
-        });
+        try {
+            await this.prisma.workspaceInvite.create({
+                data: {
+                    id: uuidv7(),
+                    workspaceId: dto.workspaceId,
+                    type: WorkspaceInviteType.Link,
+                    tokenHash,
+                    role: WorkspaceRole.MEMBER,
+                    createdById: createdById,
+                    expiresAt: dto.expiresAt,
+                },
+            });
+        } catch (error) {
+            this.handleInviteMutationError(error);
+        }
         return inviteUrl;
     }
 
@@ -212,6 +220,42 @@ export class WorkspaceInviteService {
 
         if (!member) {
             throw new BadRequestException('User is not a member of the workspace');
+        }
+    }
+
+    private async ensureUserIsNotWorkspaceMember(workspaceId: string, userId: string) {
+        const member = await this.prisma.workspaceMember.findFirst({
+            where: {
+                workspaceId,
+                userId,
+            },
+        });
+
+        if (member) {
+            throw new BadRequestException('User is already a member of this workspace');
+        }
+    }
+
+    private async ensureNoPendingDirectInvite(workspaceId: string, invitedUserId: string) {
+        const existingInvite = await this.prisma.workspaceInvite.findFirst({
+            where: {
+                workspaceId,
+                invitedUserId,
+                type: WorkspaceInviteType.Direct,
+                revokedAt: null,
+                expiresAt: {
+                    gt: new Date(),
+                },
+                responses: {
+                    none: {
+                        userId: invitedUserId,
+                    },
+                },
+            },
+        });
+
+        if (existingInvite) {
+            throw new BadRequestException('A pending direct invite already exists for this user');
         }
     }
 

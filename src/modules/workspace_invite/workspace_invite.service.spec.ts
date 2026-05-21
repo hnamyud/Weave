@@ -93,6 +93,64 @@ describe('WorkspaceInviteService', () => {
     }, 'creator-id')).rejects.toThrow(BadRequestException);
   });
 
+  it('rejects direct invites for users who are already workspace members', async () => {
+    prisma.workspaceMember.findFirst
+      .mockResolvedValueOnce({ id: 'creator-member-id' })
+      .mockResolvedValueOnce({ id: 'invited-member-id' });
+
+    await expect(service.createDirectInvite({
+      workspaceId: 'workspace-id',
+      invitedUserId: 'invited-user-id',
+    }, 'creator-id')).rejects.toThrow(BadRequestException);
+
+    expect(prisma.workspaceInvite.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects duplicate active pending direct invites for the same workspace and invited user', async () => {
+    prisma.workspaceMember.findFirst
+      .mockResolvedValueOnce({ id: 'creator-member-id' })
+      .mockResolvedValueOnce(null);
+    prisma.workspaceInvite.findFirst.mockResolvedValue({ id: 'existing-invite-id' });
+
+    await expect(service.createDirectInvite({
+      workspaceId: 'workspace-id',
+      invitedUserId: 'invited-user-id',
+    }, 'creator-id')).rejects.toThrow(BadRequestException);
+
+    expect(prisma.workspaceInvite.findFirst).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        workspaceId: 'workspace-id',
+        invitedUserId: 'invited-user-id',
+        type: 'DIRECT',
+        revokedAt: null,
+      }),
+    });
+    expect(prisma.workspaceInvite.create).not.toHaveBeenCalled();
+  });
+
+  it('maps direct invite Prisma create errors to BadRequestException', async () => {
+    prisma.workspaceMember.findFirst
+      .mockResolvedValueOnce({ id: 'creator-member-id' })
+      .mockResolvedValueOnce(null);
+    prisma.workspaceInvite.findFirst.mockResolvedValue(null);
+    prisma.workspaceInvite.create.mockRejectedValue({ code: 'P2003' });
+
+    await expect(service.createDirectInvite({
+      workspaceId: 'workspace-id',
+      invitedUserId: 'invited-user-id',
+    }, 'creator-id')).rejects.toThrow(BadRequestException);
+  });
+
+  it('maps link invite Prisma create errors to BadRequestException', async () => {
+    prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'creator-member-id' });
+    prisma.workspaceInvite.create.mockRejectedValue({ code: 'P2003' });
+
+    await expect(service.createInviteLink({
+      workspaceId: 'workspace-id',
+      expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+    }, 'creator-id')).rejects.toThrow(BadRequestException);
+  });
+
   it('accepts direct invites atomically using the invite workspace id', async () => {
     prisma.workspaceInvite.findUnique.mockResolvedValue({
       id: 'direct-invite-id',
