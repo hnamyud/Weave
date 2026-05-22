@@ -84,6 +84,7 @@ model WorkspaceMember {
   userId      String        @map("user_id") @db.Uuid
   role        WorkspaceRole @default(MEMBER)
   joinedAt    DateTime      @default(now()) @map("joined_at")
+  leftAt      DateTime?     @map("left_at")
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 

@@ -1,4 +1,111 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { v7 as uuidv7 } from 'uuid';
+import { PrismaService } from 'prisma/prisma.service';
+import { CreateWorkspaceDto } from './dto/create-workspace.dto';
+import { WorkspaceRole } from '@prisma/client';
+import { parsePositiveInteger } from '../../common/utils/parse-interger.utils';
 
 @Injectable()
-export class WorkspaceService {}
+export class WorkspaceService {
+    constructor(
+        private prisma: PrismaService,
+    ) { }
+
+    async createWorkspace(dto: CreateWorkspaceDto, ownerId: string) {
+        const workspaceId = uuidv7();
+
+        try {
+            return await this.prisma.$transaction(async (tx) => {
+                const workspace = await tx.workspace.create({
+                    data: {
+                        id: workspaceId,
+                        name: dto.name,
+                        slug: dto.slug,
+                        iconUrl: dto.iconUrl,
+                        ownerId: ownerId,
+                    }
+                });
+
+                await tx.workspaceMember.create({
+                    data: {
+                        id: uuidv7(),
+                        workspaceId,
+                        userId: ownerId,
+                        role: WorkspaceRole.OWNER,
+                    },
+                });
+
+                return workspace;
+            });
+        } catch (error) {
+            this.handleWorkspaceMutationError(error);
+        }
+    }
+
+    async getAllWorkspaceById(currentPage: number, limit: number, userId: string) {
+        const page = parsePositiveInteger(currentPage, 1, 'currentPage');
+        const pageSize = parsePositiveInteger(limit, 10, 'limit');
+        const offset = (page - 1) * pageSize;
+
+        const where = {
+            userId,
+            leftAt: null,
+            workspace: {
+                isDeleted: false,
+            },
+        };
+
+        const totalItems = await this.prisma.workspaceMember.count({
+            where,
+        });
+        const totalPages = Math.ceil(totalItems / pageSize);
+        const result = await this.prisma.workspaceMember.findMany({
+            where,
+            skip: offset,
+            take: pageSize,
+            orderBy: { joinedAt: 'desc' },
+            select: {
+                role: true,
+                joinedAt: true,
+                workspace: {
+                    select: {
+                        id: true,
+                        name: true,
+                        slug: true,
+                        iconUrl: true,
+                        createdAt: true,
+                    },
+                },
+            },
+        });
+
+        return {
+            meta: {
+                current: page,
+                pageSize,
+                pages: totalPages,
+                total: totalItems,
+            },
+            result,
+        };
+    }
+
+    private handleWorkspaceMutationError(error: unknown): never {
+        if (this.isPrismaError(error, 'P2002')) {
+            throw new ConflictException('Workspace slug already exists');
+        }
+
+        if (this.isPrismaError(error, 'P2003')) {
+            throw new BadRequestException('Workspace owner does not exist');
+        }
+
+        throw error;
+    }
+
+    private isPrismaError(error: unknown, code: string) {
+        return typeof error === 'object'
+            && error !== null
+            && 'code' in error
+            && error.code === code;
+    }
+}

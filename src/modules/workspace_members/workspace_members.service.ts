@@ -3,6 +3,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { CreateWorkspaceMembersDto } from './dto/create-wm.dto';
 import { v7 as uuidv7 } from 'uuid';
 import { WorkspaceRole } from '@prisma/client';
+import { parsePositiveInteger } from '../../common/utils/parse-interger.utils';
 
 @Injectable()
 export class WorkspaceMembersService {
@@ -10,7 +11,7 @@ export class WorkspaceMembersService {
         private prisma: PrismaService,
     ) { }
 
-    // First create workspace for owner
+    // Create workspace for owner
     async createWorkspaceOwner(dto: CreateWorkspaceMembersDto) {
         return this.createMember(dto, WorkspaceRole.OWNER);
     }
@@ -20,8 +21,8 @@ export class WorkspaceMembersService {
     }
 
     async getWorkspaceMembers(currentPage: number, limit: number, workspaceId: string) {
-        const page = this.parsePositiveInteger(currentPage, 1, 'currentPage');
-        const pageSize = this.parsePositiveInteger(limit, 10, 'limit');
+        const page = parsePositiveInteger(currentPage, 1, 'currentPage');
+        const pageSize = parsePositiveInteger(limit, 10, 'limit');
         const offset = (page - 1) * pageSize;
 
         const where = {
@@ -29,6 +30,7 @@ export class WorkspaceMembersService {
             workspace: {
                 isDeleted: false,
             },
+            leftAt: null,
         };
 
         const totalItems = await this.prisma.workspaceMember.count({
@@ -45,7 +47,7 @@ export class WorkspaceMembersService {
                     select: {
                         id: true,
                         username: true,
-                        displayName: true,  
+                        displayName: true,
                     }
                 },
                 role: true,
@@ -53,7 +55,7 @@ export class WorkspaceMembersService {
             }
         });
 
-        return { 
+        return {
             meta: {
                 current: page, // trang hiện tại
                 pageSize: pageSize, // số lượng bản ghi đã lấy
@@ -86,14 +88,38 @@ export class WorkspaceMembersService {
         }
     }
 
-    private parsePositiveInteger(value: number, defaultValue: number, fieldName: string) {
-        const parsedValue = value === undefined || value === null ? defaultValue : Number(value);
+    async grantWorkspaceRole(workspaceId: string, userId: string, role: WorkspaceRole) {
+        const member = await this.prisma.workspaceMember.findFirst({
+            where: {
+                workspaceId,
+                userId,
+                leftAt: null,
+                workspace: {
+                    isDeleted: false,
+                },
+            }
+        });
 
-        if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
-            throw new BadRequestException(`${fieldName} must be a positive integer`);
+        if (!member) {
+            throw new BadRequestException('User is not an active member of this workspace');
         }
 
-        return parsedValue;
+        return this.prisma.workspaceMember.update({
+            where: {
+                workspaceId_userId: {
+                    workspaceId,
+                    userId,
+                }
+            },
+            data: {
+                role,
+            }
+        });
+    }
+
+    // Xong conversation thì quay lại
+    async kickMember(workspaceId: string, userId: string) {
+        
     }
 
     private isPrismaError(error: unknown, code: string) {

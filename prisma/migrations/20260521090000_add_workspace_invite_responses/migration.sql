@@ -4,10 +4,7 @@ CREATE TYPE "WorkspaceInviteResponseStatus" AS ENUM ('ACCEPTED', 'DENIED');
 
 ALTER TABLE "workspace_invites"
   ADD COLUMN "type" "WorkspaceInviteType" NOT NULL DEFAULT 'LINK',
-  ADD COLUMN "invited_user_id" UUID,
-  ADD COLUMN "invited_email" TEXT,
-  ADD COLUMN "max_uses" INTEGER,
-  ADD COLUMN "used_count" INTEGER NOT NULL DEFAULT 0;
+  ADD COLUMN "invited_user_id" UUID;
 
 ALTER TABLE "workspace_invites"
   ALTER COLUMN "token_hash" DROP NOT NULL,

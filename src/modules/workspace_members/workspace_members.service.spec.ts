@@ -16,6 +16,8 @@ describe('WorkspaceMembersService', () => {
     workspaceMember: {
       count: jest.fn<(args: any) => Promise<number>>(),
       findMany: jest.fn<(args: any) => Promise<any[]>>(),
+      findFirst: jest.fn<(args: any) => Promise<any>>(),
+      update: jest.fn<(args: any) => Promise<any>>(),
       create: jest.fn<(args: any) => Promise<any>>(),
     },
   };
@@ -49,6 +51,7 @@ describe('WorkspaceMembersService', () => {
         workspace: {
           isDeleted: false,
         },
+        leftAt: null,
       },
     });
     expect(prisma.workspaceMember.findMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -57,6 +60,7 @@ describe('WorkspaceMembersService', () => {
         workspace: {
           isDeleted: false,
         },
+        leftAt: null,
       },
     }));
   });
@@ -64,5 +68,49 @@ describe('WorkspaceMembersService', () => {
   it('rejects invalid pagination values', async () => {
     await expect(service.getWorkspaceMembers(0, 10, 'workspace-id'))
       .rejects.toThrow(BadRequestException);
+  });
+
+  it('grants roles only to active members in non-deleted workspaces', async () => {
+    prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'member-id' });
+    prisma.workspaceMember.update.mockResolvedValue({
+      id: 'member-id',
+      role: 'ADMIN',
+    });
+
+    const result = await service.grantWorkspaceRole('workspace-id', 'user-id', 'ADMIN' as any);
+
+    expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith({
+      where: {
+        workspaceId: 'workspace-id',
+        userId: 'user-id',
+        leftAt: null,
+        workspace: {
+          isDeleted: false,
+        },
+      },
+    });
+    expect(prisma.workspaceMember.update).toHaveBeenCalledWith({
+      where: {
+        workspaceId_userId: {
+          workspaceId: 'workspace-id',
+          userId: 'user-id',
+        },
+      },
+      data: {
+        role: 'ADMIN',
+      },
+    });
+    expect(result).toEqual({
+      id: 'member-id',
+      role: 'ADMIN',
+    });
+  });
+
+  it('rejects granting roles to missing or inactive members', async () => {
+    prisma.workspaceMember.findFirst.mockResolvedValue(null);
+
+    await expect(service.grantWorkspaceRole('workspace-id', 'user-id', 'ADMIN' as any))
+      .rejects.toThrow(BadRequestException);
+    expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
   });
 });
