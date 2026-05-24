@@ -92,6 +92,12 @@ export class WorkspaceService {
     }
 
     async getWorkspaceById(workspaceId: string, userId: string) {
+        const memberCount = await this.prisma.workspaceMember.count({
+            where: {
+                workspaceId,
+                leftAt: null,
+            },
+        });
         const workspaceMember = await this.prisma.workspaceMember.findFirst({
             where: {
                 userId,
@@ -116,20 +122,6 @@ export class WorkspaceService {
             },
         });
 
-        if (!workspaceMember) {
-            throw new BadRequestException('Workspace does not exist');
-        }
-
-        const memberCount = await this.prisma.workspaceMember.count({
-            where: {
-                workspaceId,
-                leftAt: null,
-                workspace: {
-                    isDeleted: false,
-                },
-            },
-        });
-
         return {
             ...workspaceMember,
             memberCount
@@ -137,13 +129,11 @@ export class WorkspaceService {
     }
 
     async updateWorkspace(dto: UpdateWorkspaceDto, workspaceId: string, userId: string) {
-        const workspace = await this.prisma.workspace.findFirst({
-            where: {
-                id: workspaceId,
-                isDeleted: false,
-            },
+        const workspace = await this.prisma.workspace.findUnique({
+            where: { id: workspaceId },
             select: { 
                 ownerId: true,
+                isDeleted: false,
             },
         });
 
@@ -162,6 +152,7 @@ export class WorkspaceService {
                     name: dto.name,
                     slug: dto.slug,
                     iconUrl: dto.iconUrl,
+                    updatedAt: new Date(),
                 },
             });
         } catch (error) {
@@ -170,13 +161,11 @@ export class WorkspaceService {
     }
 
     async deleteWorkspace(workspaceId: string, userId: string) {
-        const workspace = await this.prisma.workspace.findFirst({
-            where: {
-                id: workspaceId,
-                isDeleted: false,
-            },
-            select: {
+        const workspace = await this.prisma.workspace.findUnique({
+            where: { id: workspaceId },
+            select: { 
                 ownerId: true,
+                isDeleted: false,
             },
         });
 
@@ -188,21 +177,15 @@ export class WorkspaceService {
             throw new BadRequestException('Only workspace owner can delete workspace');
         }
 
-        try {
-            return await this.prisma.workspace.update({
-                where: {
-                    id: workspaceId,
-                },
-                data: {
-                    isDeleted: true,
-                    deletedAt: new Date(),
-                    updatedAt: new Date(),
-                },
-            });
-        } catch (error) {
-            this.handleWorkspaceMutationError(error);
-        }
+        return this.prisma.workspace.update({
+            where: { id: workspaceId },
+            data: {
+                isDeleted: true,
+                deletedAt: new Date(),
+            },
+        });
     }
+
 
     // Helper methods to handle Prisma errors and convert them to appropriate HTTP exceptions
 
