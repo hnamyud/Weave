@@ -113,4 +113,22 @@ describe('WorkspaceMembersService', () => {
       .rejects.toThrow(BadRequestException);
     expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
   });
+
+  it('rejects invalid workspace roles', async () => {
+    await expect(service.grantWorkspaceRole('workspace-id', 'user-id', 'INVALID' as any))
+      .rejects.toThrow(BadRequestException);
+    expect(prisma.workspaceMember.findFirst).not.toHaveBeenCalled();
+    expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
+  });
+
+  it('prevents the owner from leaving their workspace', async () => {
+    prisma.workspaceMember.findFirst.mockResolvedValue({
+      id: 'member-id',
+      role: 'OWNER',
+    });
+
+    await expect(service.kickMember('workspace-id', 'owner-id'))
+      .rejects.toThrow(BadRequestException);
+    expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
+  });
 });

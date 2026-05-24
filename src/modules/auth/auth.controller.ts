@@ -11,12 +11,13 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { Public, ResponseMessage } from 'src/common/decorators/customize.decorator';
+import { GetUser, Public, ResponseMessage } from 'src/common/decorators/customize.decorator';
 import { LoginDto } from './dto/login.dto';
 import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { RegisterUserDto } from '../users/dto/create-user.dto';
 import { GoogleAuthGuard } from 'src/common/guards/google-auth.guard';
 import { ConfigService } from '@nestjs/config';
+import { UserInterface } from 'src/shared/interfaces/users.interface';
 
 @Controller('auth')
 export class AuthController {
@@ -67,6 +68,17 @@ export class AuthController {
   ) {
     const refreshToken = req.cookies?.['refresh_token'];
     return this.authService.logout(refreshToken, response);
+  }
+
+  @Post('/logout-all')
+  @ApiBearerAuth('access-token')
+  @ResponseMessage("Đăng xuất các thiết bị khác thành công!")
+  handleLogoutOtherDevices(
+    @GetUser() user: UserInterface,
+    @Req() req: Request
+  ) {
+    const refreshToken = req.cookies?.['refresh_token'];
+    return this.authService.logoutOtherDevices(user.id, refreshToken);
   }
 
   @Post('/register')

@@ -3,6 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { ConversationModule } from './modules/conversations/conversation.module';
+import { ConversationMembersModule } from './modules/conversation_members/conversation_members.module';
 import { FileModule } from './modules/files/file.module';
 import { MessageModule } from './modules/messages/message.module';
 import { NotificationModule } from './modules/notifications/notification.module';
@@ -22,6 +23,7 @@ import { CaslModule } from './common/casl/casl.module';
     CaslModule,
     AuthModule,
     ConversationModule,
+    ConversationMembersModule,
     FileModule,
     MessageModule,
     NotificationModule,

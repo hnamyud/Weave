@@ -1,9 +1,10 @@
-import { Body, Controller, Param, Post, Patch, Get, Query } from '@nestjs/common';
+import { Body, Controller, Param, Post, Patch, Get, Delete, Query } from '@nestjs/common';
 import { WorkspaceService } from './workspace.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { GetUser, ResponseMessage } from '../../common/decorators/customize.decorator';
 import { ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { UserInterface } from '../../shared/interfaces/users.interface';
+import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 
 @Controller('workspace')
 export class WorkspaceController {
@@ -42,5 +43,50 @@ export class WorkspaceController {
     @Query('pageSize') limit: string,
   ) {
     return this.workspaceService.getAllWorkspaceById( +currentPage, +limit, user.id);
+  }
+
+  @Get('/:id')
+  @ApiBearerAuth('access-token')
+  @ResponseMessage('Get workspace by ID successfully!')
+  async getWorkspaceById(
+    @GetUser() user: UserInterface,
+    @Param('id') workspaceId: string
+  ) {
+    return this.workspaceService.getWorkspaceById(workspaceId, user.id);
+  }
+
+  @Patch('/:id')
+  @ApiBearerAuth('access-token')
+  @ResponseMessage('Workspace updated successfully!')
+  @ApiBody({
+    type: UpdateWorkspaceDto,
+    description: 'Information required to update a workspace',
+    examples: {
+      default: {
+        summary: 'Update a workspace with new name, slug, and icon URL',
+        value: {
+          name: 'My Workspace',
+          slug: 'my-workspace',
+          iconUrl: 'https://example.com/icon.png',
+        }
+      }
+    }
+  })
+  async updateWorkspace(
+    @GetUser() user: UserInterface,
+    @Param('id') workspaceId: string,
+    @Body() updateWorkspaceDto: UpdateWorkspaceDto
+  ) {
+    return this.workspaceService.updateWorkspace(updateWorkspaceDto, workspaceId, user.id);
+  }
+
+  @Delete('/:id')
+  @ApiBearerAuth('access-token')
+  @ResponseMessage('Workspace deleted successfully!')
+  async deleteWorkspace(
+    @GetUser() user: UserInterface,
+    @Param('id') workspaceId: string
+  ) {
+    return this.workspaceService.deleteWorkspace(workspaceId, user.id);
   }
 }

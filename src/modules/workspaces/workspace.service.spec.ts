@@ -16,10 +16,13 @@ describe('WorkspaceService', () => {
     $transaction: jest.fn<(callback: (tx: any) => Promise<any>) => Promise<any>>(),
     workspace: {
       create: jest.fn<(args: any) => Promise<any>>(),
+      findFirst: jest.fn<(args: any) => Promise<any>>(),
+      update: jest.fn<(args: any) => Promise<any>>(),
     },
     workspaceMember: {
       create: jest.fn<(args: any) => Promise<any>>(),
       count: jest.fn<(args: any) => Promise<number>>(),
+      findFirst: jest.fn<(args: any) => Promise<any>>(),
       findMany: jest.fn<(args: any) => Promise<any[]>>(),
     },
   };
@@ -133,5 +136,99 @@ describe('WorkspaceService', () => {
       total: 1,
     });
     expect(result.result).toHaveLength(1);
+  });
+
+  it('gets workspace detail only when the requester is an active member', async () => {
+    prisma.workspaceMember.findFirst.mockResolvedValue({
+      role: 'OWNER',
+      joinedAt: new Date('2026-05-22T00:00:00.000Z'),
+      workspace: {
+        id: 'workspace-id',
+        name: 'Workspace',
+        slug: 'workspace',
+        iconUrl: null,
+        createdAt: new Date('2026-05-22T00:00:00.000Z'),
+      },
+    });
+    prisma.workspaceMember.count.mockResolvedValue(2);
+
+    const result = await service.getWorkspaceById('workspace-id', 'user-id');
+
+    expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith({
+      where: {
+        userId: 'user-id',
+        workspaceId: 'workspace-id',
+        leftAt: null,
+        workspace: {
+          isDeleted: false,
+        },
+      },
+      select: expect.any(Object),
+    });
+    expect(result.memberCount).toBe(2);
+  });
+
+  it('rejects workspace detail when the requester is not an active member', async () => {
+    prisma.workspaceMember.findFirst.mockResolvedValue(null);
+
+    await expect(service.getWorkspaceById('workspace-id', 'user-id'))
+      .rejects.toThrow(BadRequestException);
+    expect(prisma.workspaceMember.count).not.toHaveBeenCalled();
+  });
+
+  it('updates only non-deleted workspaces owned by the requester', async () => {
+    prisma.workspace.findFirst.mockResolvedValue({ ownerId: 'owner-id' });
+    prisma.workspace.update.mockResolvedValue({
+      id: 'workspace-id',
+      name: 'New name',
+      slug: 'new-slug',
+      iconUrl: null,
+    });
+
+    await service.updateWorkspace({
+      name: 'New name',
+      slug: 'new-slug',
+    }, 'workspace-id', 'owner-id');
+
+    expect(prisma.workspace.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'workspace-id',
+        isDeleted: false,
+      },
+      select: {
+        ownerId: true,
+      },
+    });
+  });
+
+  it('soft deletes only non-deleted workspaces owned by the requester', async () => {
+    prisma.workspace.findFirst.mockResolvedValue({ ownerId: 'owner-id' });
+    prisma.workspace.update.mockResolvedValue({
+      id: 'workspace-id',
+      isDeleted: true,
+      deletedAt: new Date('2026-05-25T00:00:00.000Z'),
+    });
+
+    await service.deleteWorkspace('workspace-id', 'owner-id');
+
+    expect(prisma.workspace.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'workspace-id',
+        isDeleted: false,
+      },
+      select: {
+        ownerId: true,
+      },
+    });
+    expect(prisma.workspace.update).toHaveBeenCalledWith({
+      where: {
+        id: 'workspace-id',
+      },
+      data: {
+        isDeleted: true,
+        deletedAt: expect.any(Date),
+        updatedAt: expect.any(Date),
+      },
+    });
   });
 });

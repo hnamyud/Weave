@@ -4,6 +4,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { WorkspaceRole } from '@prisma/client';
 import { parsePositiveInteger } from '../../common/utils/parse-interger.utils';
+import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 
 @Injectable()
 export class WorkspaceService {
@@ -89,6 +90,121 @@ export class WorkspaceService {
             result,
         };
     }
+
+    async getWorkspaceById(workspaceId: string, userId: string) {
+        const workspaceMember = await this.prisma.workspaceMember.findFirst({
+            where: {
+                userId,
+                workspaceId,
+                leftAt: null,
+                workspace: {
+                    isDeleted: false,
+                },
+            },
+            select: {
+                role: true,
+                joinedAt: true,
+                workspace: {
+                    select: {
+                        id: true,
+                        name: true,
+                        slug: true,
+                        iconUrl: true,
+                        createdAt: true,
+                    },
+                },
+            },
+        });
+
+        if (!workspaceMember) {
+            throw new BadRequestException('Workspace does not exist');
+        }
+
+        const memberCount = await this.prisma.workspaceMember.count({
+            where: {
+                workspaceId,
+                leftAt: null,
+                workspace: {
+                    isDeleted: false,
+                },
+            },
+        });
+
+        return {
+            ...workspaceMember,
+            memberCount
+        };
+    }
+
+    async updateWorkspace(dto: UpdateWorkspaceDto, workspaceId: string, userId: string) {
+        const workspace = await this.prisma.workspace.findFirst({
+            where: {
+                id: workspaceId,
+                isDeleted: false,
+            },
+            select: { 
+                ownerId: true,
+            },
+        });
+
+        if (!workspace) {
+            throw new BadRequestException('Workspace does not exist');
+        }
+
+        if (workspace.ownerId !== userId) {
+            throw new BadRequestException('Only workspace owner can update workspace');
+        }
+
+        try {
+            return await this.prisma.workspace.update({
+                where: { id: workspaceId },
+                data: {
+                    name: dto.name,
+                    slug: dto.slug,
+                    iconUrl: dto.iconUrl,
+                },
+            });
+        } catch (error) {
+            this.handleWorkspaceMutationError(error);
+        }
+    }
+
+    async deleteWorkspace(workspaceId: string, userId: string) {
+        const workspace = await this.prisma.workspace.findFirst({
+            where: {
+                id: workspaceId,
+                isDeleted: false,
+            },
+            select: {
+                ownerId: true,
+            },
+        });
+
+        if (!workspace) {
+            throw new BadRequestException('Workspace does not exist');
+        }
+
+        if (workspace.ownerId !== userId) {
+            throw new BadRequestException('Only workspace owner can delete workspace');
+        }
+
+        try {
+            return await this.prisma.workspace.update({
+                where: {
+                    id: workspaceId,
+                },
+                data: {
+                    isDeleted: true,
+                    deletedAt: new Date(),
+                    updatedAt: new Date(),
+                },
+            });
+        } catch (error) {
+            this.handleWorkspaceMutationError(error);
+        }
+    }
+
+    // Helper methods to handle Prisma errors and convert them to appropriate HTTP exceptions
 
     private handleWorkspaceMutationError(error: unknown): never {
         if (this.isPrismaError(error, 'P2002')) {

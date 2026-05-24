@@ -122,6 +122,21 @@ export class TokensService implements OnModuleInit {
         return this.revokeToken(this.hashToken(refreshToken));
     }
 
+    async revokeOtherRefreshTokensForUser(userId: string, currentTokenHash: string) {
+        return this.prisma.refreshToken.updateMany({
+            where: {
+                userId,
+                revokedAt: null,
+                tokenHash: {
+                    not: currentTokenHash,
+                },
+            },
+            data: {
+                revokedAt: new Date(),
+            },
+        });
+    }
+
     async cleanupInactiveRefreshTokens() {
         return this.prisma.refreshToken.deleteMany({
             where: {

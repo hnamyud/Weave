@@ -1,7 +1,5 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
-import { CreateWorkspaceMembersDto } from './dto/create-wm.dto';
-import { v7 as uuidv7 } from 'uuid';
 import { WorkspaceRole } from '@prisma/client';
 import { parsePositiveInteger } from '../../common/utils/parse-interger.utils';
 
@@ -10,15 +8,6 @@ export class WorkspaceMembersService {
     constructor(
         private prisma: PrismaService,
     ) { }
-
-    // Create workspace for owner
-    async createWorkspaceOwner(dto: CreateWorkspaceMembersDto) {
-        return this.createMember(dto, WorkspaceRole.OWNER);
-    }
-
-    async createWorkspaceMembers(dto: CreateWorkspaceMembersDto) {
-        return this.createMember(dto, WorkspaceRole.MEMBER);
-    }
 
     async getWorkspaceMembers(currentPage: number, limit: number, workspaceId: string) {
         const page = parsePositiveInteger(currentPage, 1, 'currentPage');
@@ -65,30 +54,10 @@ export class WorkspaceMembersService {
             result
         };
     }
-
-    private async createMember(dto: CreateWorkspaceMembersDto, role: WorkspaceRole) {
-        try {
-            return await this.prisma.workspaceMember.create({
-                data: {
-                    id: uuidv7(),
-                    workspaceId: dto.workspaceId,
-                    userId: dto.userId,
-                    role,
-                },
-            });
-        } catch (error) {
-            // Prisma error code: P2002 - Unique constraint failed, P2003 - Foreign key constraint failed
-            if (this.isPrismaError(error, 'P2002')) {
-                throw new ConflictException('User is already a member of this workspace');
-            }
-            if (this.isPrismaError(error, 'P2003')) {
-                throw new BadRequestException('Workspace or user does not exist');
-            }
-            throw error;
-        }
-    }
-
+    
     async grantWorkspaceRole(workspaceId: string, userId: string, role: WorkspaceRole) {
+        this.ensureValidWorkspaceRole(role);
+
         const member = await this.prisma.workspaceMember.findFirst({
             where: {
                 workspaceId,
@@ -117,15 +86,46 @@ export class WorkspaceMembersService {
         });
     }
 
-    // Xong conversation thì quay lại
     async kickMember(workspaceId: string, userId: string) {
+        const member = await this.prisma.workspaceMember.findFirst({
+            where: {
+                workspaceId,
+                userId,
+                leftAt: null,
+                workspace: {
+                    isDeleted: false,
+                },
+            }
+        });
         
+        if (!member) {
+            throw new BadRequestException('User is not an active member of this workspace');
+        }
+
+        if (member.role === WorkspaceRole.OWNER) {
+            throw new BadRequestException('Workspace owner cannot leave the workspace');
+        }
+
+        return this.prisma.workspaceMember.update({
+            where: {
+                workspaceId_userId: {
+                    workspaceId,
+                    userId,
+                }
+            },
+            data: {
+                leftAt: new Date(),
+            }
+        }); 
     }
 
-    private isPrismaError(error: unknown, code: string) {
-        return typeof error === 'object'
-            && error !== null
-            && 'code' in error
-            && error.code === code;
+    async leaveWorkspace(workspaceId: string, userId: string) {
+        return this.kickMember(workspaceId, userId);
+    }
+
+    private ensureValidWorkspaceRole(role: WorkspaceRole) {
+        if (!Object.values(WorkspaceRole).includes(role)) {
+            throw new BadRequestException('Invalid workspace role');
+        }
     }
 }

@@ -125,6 +125,29 @@ export class AuthService {
         }
     }
 
+    async logoutOtherDevices(userId: string, refreshToken: string | undefined) {
+        try {
+            if (!refreshToken) {
+                throw new UnauthorizedException('Refresh token is required!');
+            }
+
+            const currentTokenHash = this.refreshTokenService.hashToken(refreshToken);
+            const revokeResult = await this.refreshTokenService.revokeOtherRefreshTokensForUser(
+                userId,
+                currentTokenHash,
+            );
+
+            return {
+                message: 'Logout other devices successful!',
+                loggedOutOtherDevices: true,
+                revokedSessions: revokeResult.count,
+                timestamp: new Date().toISOString(),
+            };
+        } catch {
+            throw new UnauthorizedException('Logout other devices failed!');
+        }
+    }
+
     async validateGoogleUser(
         googleUser: {
             email: string,

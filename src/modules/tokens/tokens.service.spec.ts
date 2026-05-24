@@ -140,4 +140,28 @@ describe('TokensService', () => {
     });
     expect(result).toEqual({ count: 3 });
   });
+
+  it('revokes active refresh tokens for a user except the current token', async () => {
+    prisma.refreshToken.updateMany.mockResolvedValue({ count: 4 });
+
+    const currentTokenHash = service.hashToken('current-refresh-token');
+    const result = await service.revokeOtherRefreshTokensForUser(
+      'user-id',
+      currentTokenHash,
+    );
+
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'user-id',
+        revokedAt: null,
+        tokenHash: {
+          not: currentTokenHash,
+        },
+      },
+      data: {
+        revokedAt: expect.any(Date),
+      },
+    });
+    expect(result).toEqual({ count: 4 });
+  });
 });
