@@ -5,12 +5,23 @@ import { CreateDirectInviteDto, CreateInviteLinkDto } from './dto/invite.dto';
 import { WorkspaceRole } from '@prisma/client';
 import { WorkspaceInviteType } from '../../shared/enums/invite-type.enum';
 import { ConfigService } from '@nestjs/config';
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes } from 'crypto';
 import { WorkspaceInviteResponseStatus } from '../../shared/enums/invite-response-status.enum';
 import { DirectInviteResponseDto, LinkInviteResponseDto } from './dto/invite-response.dto';
+import { parsePositiveInteger } from '../../common/utils/parse-interger.utils';
+import { UserInterface } from '../../shared/interfaces/users.interface';
 
 type CreateInviteLinkInput = CreateInviteLinkDto & { workspaceId: string };
 type CreateDirectInviteInput = CreateDirectInviteDto & { workspaceId: string };
+type InviteListStatus = 'ACTIVE';
+type GetWorkspaceInvitesInput = {
+    currentPage: number;
+    limit: number;
+    workspaceId: string;
+    requesterId: string;
+    type?: string;
+    status?: string;
+};
 
 @Injectable()
 export class WorkspaceInviteService {
@@ -20,18 +31,22 @@ export class WorkspaceInviteService {
     ) { }
 
     async createDirectInvite(dto: CreateDirectInviteInput, createdById: string) {
+        const invitedEmail = this.normalizeEmail(dto.invitedEmail);
         await this.ensureWorkspaceMember(dto.workspaceId, createdById);
-        await this.ensureUserIsNotWorkspaceMember(dto.workspaceId, dto.invitedUserId);
-        await this.ensureNoPendingDirectInvite(dto.workspaceId, dto.invitedUserId);
+        await this.ensureEmailIsNotWorkspaceMember(dto.workspaceId, invitedEmail);
+        await this.ensureNoPendingDirectInvite(dto.workspaceId, invitedEmail);
         const expiresInDays = this.getInviteExpiresInDays();
+        const rawToken = randomBytes(16).toString('base64url');
+        const inviteUrl = `${this.getInviteBaseUrl()}${rawToken}`;
 
         try {
-            return await this.prisma.workspaceInvite.create({
+            await this.prisma.workspaceInvite.create({
                 data: {
                     id: uuidv7(),
                     workspaceId: dto.workspaceId,
                     type: WorkspaceInviteType.Direct,
-                    invitedUserId: dto.invitedUserId,
+                    invitedEmail,
+                    rawToken,
                     role: WorkspaceRole.MEMBER,
                     createdById: createdById,
                     expiresAt: new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000),
@@ -40,14 +55,25 @@ export class WorkspaceInviteService {
         } catch (error) {
             this.handleInviteMutationError(error);
         }
+
+        await this.sendDirectInviteEmail(invitedEmail, inviteUrl);
+
+        return inviteUrl;
     }
 
     async createInviteLink(dto: CreateInviteLinkInput, createdById: string) {
         await this.ensureWorkspaceMember(dto.workspaceId, createdById);
         this.ensureValidExpiration(dto.expiresAt);
 
+        const activeLinkInvite = await this.findActiveLinkInvite(dto.workspaceId);
+        if (activeLinkInvite?.rawToken) {
+            return `${this.getInviteBaseUrl()}${activeLinkInvite.rawToken}`;
+        }
+        if (activeLinkInvite) {
+            await this.revokeActiveLinkInvite(activeLinkInvite.id);
+        }
+
         const rawToken = randomBytes(16).toString('base64url');
-        const tokenHash = createHash('sha256').update(rawToken).digest('hex');
         const inviteUrl = `${this.getInviteBaseUrl()}${rawToken}`;
         try {
             await this.prisma.workspaceInvite.create({
@@ -55,7 +81,7 @@ export class WorkspaceInviteService {
                     id: uuidv7(),
                     workspaceId: dto.workspaceId,
                     type: WorkspaceInviteType.Link,
-                    tokenHash,
+                    rawToken,
                     role: WorkspaceRole.MEMBER,
                     createdById: createdById,
                     expiresAt: dto.expiresAt,
@@ -67,9 +93,13 @@ export class WorkspaceInviteService {
         return inviteUrl;
     }
 
-    async acceptDirectInvite(dto: DirectInviteResponseDto, currentUserId: string) {
-        const invite = await this.prisma.workspaceInvite.findUnique({
-            where: { id: dto.inviteId },
+    async acceptDirectInvite(dto: DirectInviteResponseDto, currentUser: Pick<UserInterface, 'id' | 'email'>) {
+        const invite = await this.prisma.workspaceInvite.findFirst({
+            where: {
+                type: WorkspaceInviteType.Direct,
+                rawToken: dto.token,
+                revokedAt: null,
+            },
         });
 
         if (!invite) {
@@ -82,19 +112,18 @@ export class WorkspaceInviteService {
 
         this.ensureInviteIsUsable(invite);
 
-        if (invite.invitedUserId !== currentUserId) {
+        if (invite.invitedEmail !== this.normalizeEmail(currentUser.email)) {
             throw new BadRequestException('You are not the invited user for this invite');
         }
 
-        return this.acceptInviteInTransaction(invite.id, invite.workspaceId, currentUserId);
+        return this.acceptInviteInTransaction(invite.id, invite.workspaceId, currentUser.id);
     }
 
     async acceptLinkInvite(dto: LinkInviteResponseDto, currentUserId: string) {
-        const tokenHash = createHash('sha256').update(dto.token).digest('hex');
         const invite = await this.prisma.workspaceInvite.findFirst({
             where: {
                 type: WorkspaceInviteType.Link,
-                tokenHash,
+                rawToken: dto.token,
                 revokedAt: null,
             },
         });
@@ -108,9 +137,13 @@ export class WorkspaceInviteService {
         return this.acceptInviteInTransaction(invite.id, invite.workspaceId, currentUserId);
     }
 
-    async denyInvite(dto: DirectInviteResponseDto, currentUserId: string) {
-        const invite = await this.prisma.workspaceInvite.findUnique({
-            where: { id: dto.inviteId },
+    async denyInvite(dto: DirectInviteResponseDto, currentUser: Pick<UserInterface, 'id' | 'email'>) {
+        const invite = await this.prisma.workspaceInvite.findFirst({
+            where: {
+                type: WorkspaceInviteType.Direct,
+                rawToken: dto.token,
+                revokedAt: null,
+            },
         });
 
         if (!invite) {
@@ -123,7 +156,7 @@ export class WorkspaceInviteService {
 
         this.ensureInviteIsUsable(invite);
 
-        if (invite.invitedUserId !== currentUserId) {
+        if (invite.invitedEmail !== this.normalizeEmail(currentUser.email)) {
             throw new BadRequestException('You are not the invited user for this invite');
         }
 
@@ -131,8 +164,8 @@ export class WorkspaceInviteService {
             return await this.prisma.workspaceInviteResponse.create({
                 data: {
                     id: uuidv7(),
-                    inviteId: dto.inviteId,
-                    userId: currentUserId,
+                    inviteId: invite.id,
+                    userId: currentUser.id,
                     status: WorkspaceInviteResponseStatus.Denied,
                 },
             });
@@ -168,6 +201,89 @@ export class WorkspaceInviteService {
         } catch (error) {
             this.handleInviteMutationError(error);
         }
+    }
+
+    async getWorkspaceInvites(input: GetWorkspaceInvitesInput) {
+        const page = parsePositiveInteger(input.currentPage, 1, 'currentPage');
+        const pageSize = parsePositiveInteger(input.limit, 10, 'limit');
+        const offset = (page - 1) * pageSize;
+        const type = this.parseInviteType(input.type);
+        const status = this.parseInviteStatus(input.status);
+
+        const where = {
+            workspaceId: input.workspaceId,
+            workspace: {
+                isDeleted: false,
+            },
+            ...(type ? { type } : {}),
+            ...(status === 'ACTIVE' ? {
+                revokedAt: null,
+                expiresAt: {
+                    gt: new Date(),
+                },
+            } : {}),
+        };
+
+        await this.ensureWorkspaceMember(input.workspaceId, input.requesterId);
+
+        const totalItems = await this.prisma.workspaceInvite.count({
+            where,
+        });
+        const totalPages = Math.ceil(totalItems / pageSize);
+        const result = await this.prisma.workspaceInvite.findMany({
+            where,
+            skip: offset,
+            take: pageSize,
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                type: true,
+                rawToken: true,
+                invitedEmail: true,
+                role: true,
+                expiresAt: true,
+                revokedAt: true,
+                createdAt: true,
+                createdBy: {
+                    select: {
+                        id: true,
+                        username: true,
+                        displayName: true,
+                    },
+                },
+                _count: {
+                    select: {
+                        responses: {
+                            where: {
+                                status: WorkspaceInviteResponseStatus.Accepted,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        const mappedResult = result.map(({ _count, ...invite }) => ({
+            ...this.omitRawToken(invite),
+            ...(invite.type === WorkspaceInviteType.Link
+                ? {
+                    inviteUrl: invite.rawToken
+                        ? `${this.getInviteBaseUrl()}${invite.rawToken}`
+                        : null,
+                    usageCount: _count.responses,
+                }
+                : {}),
+        }));
+
+        return {
+            meta: {
+                current: page, // trang hiện tại
+                pageSize: pageSize, // số lượng bản ghi đã lấy
+                pages: totalPages,  // tổng số trang
+                total: totalItems // tổng số phần tử
+            },
+            result: mappedResult
+        };
     }
 
     // Helper methods
@@ -223,11 +339,14 @@ export class WorkspaceInviteService {
         }
     }
 
-    private async ensureUserIsNotWorkspaceMember(workspaceId: string, userId: string) {
+    private async ensureEmailIsNotWorkspaceMember(workspaceId: string, email: string) {
         const member = await this.prisma.workspaceMember.findFirst({
             where: {
                 workspaceId,
-                userId,
+                user: {
+                    email,
+                },
+                leftAt: null,
             },
         });
 
@@ -236,20 +355,18 @@ export class WorkspaceInviteService {
         }
     }
 
-    private async ensureNoPendingDirectInvite(workspaceId: string, invitedUserId: string) {
+    private async ensureNoPendingDirectInvite(workspaceId: string, invitedEmail: string) {
         const existingInvite = await this.prisma.workspaceInvite.findFirst({
             where: {
                 workspaceId,
-                invitedUserId,
+                invitedEmail,
                 type: WorkspaceInviteType.Direct,
                 revokedAt: null,
                 expiresAt: {
                     gt: new Date(),
                 },
                 responses: {
-                    none: {
-                        userId: invitedUserId,
-                    },
+                    none: {},
                 },
             },
         });
@@ -287,6 +404,78 @@ export class WorkspaceInviteService {
         if (expiresAt <= new Date()) {
             throw new BadRequestException('Expiration date must be in the future');
         }
+    }
+
+    private findActiveLinkInvite(workspaceId: string) {
+        return this.prisma.workspaceInvite.findFirst({
+            where: {
+                workspaceId,
+                type: WorkspaceInviteType.Link,
+                revokedAt: null,
+                expiresAt: {
+                    gt: new Date(),
+                },
+            },
+            select: {
+                id: true,
+                rawToken: true,
+            },
+        });
+    }
+
+    private revokeActiveLinkInvite(inviteId: string) {
+        return this.prisma.workspaceInvite.update({
+            where: {
+                id: inviteId,
+            },
+            data: {
+                revokedAt: new Date(),
+            },
+        });
+    }
+
+    private parseInviteType(type?: string) {
+        if (!type) {
+            return undefined;
+        }
+
+        const normalizedType = type.toUpperCase();
+        const inviteType = Object.values(WorkspaceInviteType)
+            .find((value) => value === normalizedType);
+
+        if (!inviteType) {
+            throw new BadRequestException('Invalid invite type');
+        }
+
+        return inviteType;
+    }
+
+    private parseInviteStatus(status?: string): InviteListStatus | undefined {
+        if (!status) {
+            return undefined;
+        }
+
+        const normalizedStatus = status.toUpperCase();
+
+        if (normalizedStatus !== 'ACTIVE') {
+            throw new BadRequestException('Invalid invite status');
+        }
+
+        return normalizedStatus;
+    }
+
+    private omitRawToken<T extends { rawToken?: string | null }>(invite: T) {
+        const { rawToken, ...safeInvite } = invite;
+        return safeInvite;
+    }
+
+    private normalizeEmail(email: string) {
+        return email.trim().toLowerCase();
+    }
+
+    private async sendDirectInviteEmail(invitedEmail: string, inviteUrl: string) {
+        void invitedEmail;
+        void inviteUrl;
     }
 
     private handleInviteMutationError(error: unknown): never {

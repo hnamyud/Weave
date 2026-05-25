@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Patch, Query } from '@nestjs/common';
 import { WorkspaceInviteService } from './workspace_invite.service';
 import { GetUser, ResponseMessage } from '../../common/decorators/customize.decorator';
 import { CreateDirectInviteDto, CreateInviteLinkDto } from './dto/invite.dto';
@@ -10,7 +10,27 @@ import { UserInterface } from '../../shared/interfaces/users.interface';
 export class WorkspaceInviteController {
   constructor(private readonly workspaceInviteService: WorkspaceInviteService) { }
 
-  @Post(':workspaceId/direct')
+  @Get('/:workspaceId')
+  @ResponseMessage("Get workspace invites successfully!")
+  async getWorkspaceInvites(
+    @Param('workspaceId') workspaceId: string,
+    @Query('current') currentPage: string,
+    @Query('pageSize') limit: string,
+    @Query('type') type: string,
+    @Query('status') status: string,
+    @GetUser() user: UserInterface,
+  ) {
+    return this.workspaceInviteService.getWorkspaceInvites({
+      currentPage: +currentPage,
+      limit: +limit,
+      workspaceId,
+      requesterId: user.id,
+      type,
+      status,
+    });
+  }
+
+  @Post('/:workspaceId/direct')
   @ResponseMessage("Create direct invite successfully!")
   @ApiBody({
     type: CreateDirectInviteDto,
@@ -19,7 +39,7 @@ export class WorkspaceInviteController {
       default: {
         summary: 'Invite user with workspace and user IDs',
         value: {
-          invitedUserId: 'user-uuid',
+          invitedEmail: 'user@example.com',
         }
       }
     }
@@ -35,7 +55,7 @@ export class WorkspaceInviteController {
     }, user.id);
   }
 
-  @Post(':workspaceId/link')
+  @Post('/:workspaceId/link')
   @ResponseMessage("Create invite link successfully!")
   @ApiBody({
     type: CreateInviteLinkDto,
@@ -60,7 +80,7 @@ export class WorkspaceInviteController {
     }, user.id);
   }
 
-  @Post('accept-direct')
+  @Post('/accept-direct')
   @ResponseMessage("Accept direct invite successfully!")
   @ApiBody({
     type: DirectInviteResponseDto,
@@ -69,7 +89,7 @@ export class WorkspaceInviteController {
       default: {
         summary: 'Accept direct invite with invite ID and current user ID',
         value: {
-          inviteId: 'direct-invite-uuid',
+          token: 'direct-invite-token',
         }
       }
     }
@@ -78,10 +98,10 @@ export class WorkspaceInviteController {
     @Body() dto: DirectInviteResponseDto,
     @GetUser() user: UserInterface
   ) {
-    return this.workspaceInviteService.acceptDirectInvite(dto, user.id);
+    return this.workspaceInviteService.acceptDirectInvite(dto, user);
   }
 
-  @Post('accept-link')
+  @Post('/accept-link')
   @ResponseMessage("Accept invite link successfully!")
   @ApiBody({
     type: LinkInviteResponseDto,
@@ -102,7 +122,7 @@ export class WorkspaceInviteController {
     return this.workspaceInviteService.acceptLinkInvite(dto, user.id);
   }
 
-  @Post('deny')
+  @Post('/deny')
   @ResponseMessage("Deny invite successfully!")
   @ApiBody({
     type: DirectInviteResponseDto,
@@ -111,7 +131,7 @@ export class WorkspaceInviteController {
       default: {
         summary: 'Deny direct invite with invite ID and current user ID',
         value: {
-          inviteId: 'direct-invite-uuid',
+          token: 'direct-invite-token',
         }
       }
     }
@@ -120,10 +140,10 @@ export class WorkspaceInviteController {
     @Body() dto: DirectInviteResponseDto, 
     @GetUser() user: UserInterface
   ) {
-    return this.workspaceInviteService.denyInvite(dto, user.id);
+    return this.workspaceInviteService.denyInvite(dto, user);
   }
 
-  @Patch(':inviteId/revoke')
+  @Patch('/:inviteId/revoke')
   @ResponseMessage("Revoke invite successfully!")
   async revokeInvite(
     @Param('inviteId') inviteId: string,

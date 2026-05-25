@@ -37,7 +37,6 @@ model User {
   workspaceMemberships WorkspaceMember[]
   ownedWorkspaces      Workspace[]           @relation("WorkspaceOwner")
   createdWorkspaceInvites WorkspaceInvite[]         @relation("WorkspaceInviteCreator")
-  receivedWorkspaceInvites WorkspaceInvite[]        @relation("WorkspaceInviteRecipient")
   workspaceInviteResponses WorkspaceInviteResponse[]
 
   @@map("users")
@@ -96,8 +95,8 @@ model WorkspaceInvite {
   id              String        @id @db.Uuid
   workspaceId     String        @map("workspace_id") @db.Uuid
   type            WorkspaceInviteType
-  tokenHash       String?       @unique @map("token_hash")
-  invitedUserId   String?       @map("invited_user_id") @db.Uuid
+  rawToken        String?       @unique @map("raw_token")
+  invitedEmail    String?       @map("invited_email")
   role            WorkspaceRole @default(MEMBER)
   createdById     String        @map("created_by_id") @db.Uuid
   expiresAt       DateTime      @map("expires_at")
@@ -106,12 +105,11 @@ model WorkspaceInvite {
 
   workspace       Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdBy       User          @relation("WorkspaceInviteCreator", fields: [createdById], references: [id])
-  invitedUser     User?         @relation("WorkspaceInviteRecipient", fields: [invitedUserId], references: [id], onDelete: Cascade)
   responses       WorkspaceInviteResponse[]
 
   @@index([workspaceId])
   @@index([createdById])
-  @@index([invitedUserId])
+  @@index([invitedEmail])
   @@index([expiresAt])
   @@map("workspace_invites")
 }

@@ -3,8 +3,8 @@ import { IsNotEmpty } from "class-validator";
 
 export class DirectInviteResponseDto {
     @ApiProperty()
-    @IsNotEmpty({ message: "Invite ID cannot be empty" })
-    inviteId: string
+    @IsNotEmpty({ message: "Invite token cannot be empty" })
+    token: string
 }
 
 export class LinkInviteResponseDto {

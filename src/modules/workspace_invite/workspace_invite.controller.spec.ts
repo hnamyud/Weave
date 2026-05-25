@@ -14,14 +14,14 @@ describe('WorkspaceInviteController', () => {
   const workspaceInviteService = {
     createDirectInvite: jest.fn<(dto: any, createdById: string) => Promise<any>>(),
     createInviteLink: jest.fn<(dto: any, createdById: string) => Promise<any>>(),
-    acceptDirectInvite: jest.fn<(dto: any, currentUserId: string) => Promise<any>>(),
+    acceptDirectInvite: jest.fn<(dto: any, currentUser: any) => Promise<any>>(),
     acceptLinkInvite: jest.fn<(dto: any, currentUserId: string) => Promise<any>>(),
-    denyInvite: jest.fn<(dto: any, currentUserId: string) => Promise<any>>(),
+    denyInvite: jest.fn<(dto: any, currentUser: any) => Promise<any>>(),
     revokeInvite: jest.fn<(inviteId: string, currentUserId: string) => Promise<any>>(),
   };
 
   const controller = new WorkspaceInviteController(workspaceInviteService as any);
-  const user = { id: 'current-user-id' } as any;
+  const user = { id: 'current-user-id', email: 'current@example.com' } as any;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -31,12 +31,12 @@ describe('WorkspaceInviteController', () => {
     workspaceInviteService.createDirectInvite.mockResolvedValue({ id: 'invite-id' });
 
     await controller.inviteDirectly('workspace-id', {
-      invitedUserId: 'invited-user-id',
+      invitedEmail: 'invited@example.com',
     }, user);
 
     expect(workspaceInviteService.createDirectInvite).toHaveBeenCalledWith({
       workspaceId: 'workspace-id',
-      invitedUserId: 'invited-user-id',
+      invitedEmail: 'invited@example.com',
     }, 'current-user-id');
   });
 
@@ -54,16 +54,16 @@ describe('WorkspaceInviteController', () => {
     }, 'current-user-id');
   });
 
-  it('passes accept direct dto and authenticated user id to the service', async () => {
+  it('passes accept direct dto and authenticated user to the service', async () => {
     workspaceInviteService.acceptDirectInvite.mockResolvedValue({ id: 'response-id' });
 
     await controller.acceptDirectInvite({
-      inviteId: 'direct-invite-id',
+      token: 'direct-token',
     }, user);
 
     expect(workspaceInviteService.acceptDirectInvite).toHaveBeenCalledWith({
-      inviteId: 'direct-invite-id',
-    }, 'current-user-id');
+      token: 'direct-token',
+    }, user);
   });
 
   it('passes accept link dto and authenticated user id to the service', async () => {
@@ -78,16 +78,16 @@ describe('WorkspaceInviteController', () => {
     }, 'current-user-id');
   });
 
-  it('passes deny dto and authenticated user id to the service', async () => {
+  it('passes deny dto and authenticated user to the service', async () => {
     workspaceInviteService.denyInvite.mockResolvedValue({ id: 'response-id' });
 
     await controller.denyInvite({
-      inviteId: 'direct-invite-id',
+      token: 'direct-token',
     }, user);
 
     expect(workspaceInviteService.denyInvite).toHaveBeenCalledWith({
-      inviteId: 'direct-invite-id',
-    }, 'current-user-id');
+      token: 'direct-token',
+    }, user);
   });
 
   it('passes revoke invite id and authenticated user id to the service', async () => {

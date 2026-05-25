@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsDate, IsNotEmpty } from "class-validator";
+import { IsDate, IsEmail, IsNotEmpty } from "class-validator";
 
 export class CreateInviteLinkDto {
     @ApiProperty()
@@ -12,6 +12,7 @@ export class CreateInviteLinkDto {
 
 export class CreateDirectInviteDto {
     @ApiProperty()
-    @IsNotEmpty({ message: "Invited user ID cannot be empty" })
-    invitedUserId: string
+    @IsNotEmpty({ message: "Invited email cannot be empty" })
+    @IsEmail({}, { message: "Invited email must be valid" })
+    invitedEmail: string
 }

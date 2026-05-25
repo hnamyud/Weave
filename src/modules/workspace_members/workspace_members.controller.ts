@@ -1,7 +1,8 @@
 import { Controller, Get, Param, Patch, Delete, Query } from '@nestjs/common';
 import { WorkspaceMembersService } from './workspace_members.service';
 import { ApiBearerAuth } from '@nestjs/swagger';
-import { ResponseMessage } from '../../common/decorators/customize.decorator';
+import { GetUser, ResponseMessage } from '../../common/decorators/customize.decorator';
+import { UserInterface } from 'src/shared/interfaces/users.interface';
 
 @Controller('workspace-members')
 export class WorkspaceMembersController {
@@ -37,5 +38,15 @@ export class WorkspaceMembersController {
     @Param('userId') userId: string,
   ) {
     return this.workspaceMembersService.kickMember(workspaceId, userId);
+  }
+
+  @Delete('/:workspaceId/leave')
+  @ApiBearerAuth('access-token')
+  @ResponseMessage('Leave workspace successfully!')
+  async leaveWorkspace(
+    @Param('workspaceId') workspaceId: string,
+    @GetUser() user: UserInterface,
+  ) {
+    return this.workspaceMembersService.leaveWorkspace(workspaceId, user.id);
   }
 }
