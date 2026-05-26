@@ -5,14 +5,29 @@ jest.mock('prisma/prisma.service', () => ({
   PrismaService: class PrismaService {},
 }), { virtual: true });
 
+jest.mock('uuid', () => ({
+  v7: () => 'conversation-member-id',
+}));
+
+jest.mock('src/shared/enums/conversation-role.enum', () => ({
+  ConversationRole: {
+    Admin: 'ADMIN',
+    Member: 'MEMBER',
+    Guest: 'GUEST',
+  },
+}), { virtual: true });
+
 import { ConversationMembersService } from './conversation_members.service';
 
 describe('ConversationMembersService', () => {
   const prisma = {
     conversationMember: {
       count: jest.fn<(args: any) => Promise<number>>(),
+      create: jest.fn<(args: any) => Promise<any>>(),
       findFirst: jest.fn<(args: any) => Promise<any>>(),
+      findUnique: jest.fn<(args: any) => Promise<any>>(),
       findMany: jest.fn<(args: any) => Promise<any[]>>(),
+      update: jest.fn<(args: any) => Promise<any>>(),
     },
   };
 
@@ -50,11 +65,13 @@ describe('ConversationMembersService', () => {
 
     const where = {
       conversationId: 'conversation-id',
+      leftAt: null,
     };
     expect(prisma.conversationMember.findFirst).toHaveBeenCalledWith({
       where: {
         conversationId: 'conversation-id',
         userId: 'requester-id',
+        leftAt: null,
       },
     });
     expect(prisma.conversationMember.count).toHaveBeenCalledWith({ where });

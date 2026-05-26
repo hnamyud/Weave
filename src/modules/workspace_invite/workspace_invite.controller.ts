@@ -1,16 +1,21 @@
-import { Body, Controller, Get, Param, Post, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Patch, Query, UseGuards } from '@nestjs/common';
 import { WorkspaceInviteService } from './workspace_invite.service';
 import { GetUser, ResponseMessage } from '../../common/decorators/customize.decorator';
 import { CreateDirectInviteDto, CreateInviteLinkDto } from './dto/invite.dto';
 import { ApiBody } from '@nestjs/swagger';
 import { DirectInviteResponseDto, LinkInviteResponseDto } from './dto/invite-response.dto';
 import { UserInterface } from '../../shared/interfaces/users.interface';
+import { WorkspaceMemberGuard } from '../../common/guards/workspace-member.guard';
+import { RequireWorkspacePermission } from '../../common/decorators/policy.decorator';
+import { Action } from '../../shared/enums/action.enum';
 
 @Controller('workspace-invite')
 export class WorkspaceInviteController {
   constructor(private readonly workspaceInviteService: WorkspaceInviteService) { }
 
   @Get('/:workspaceId')
+  @UseGuards(WorkspaceMemberGuard)
+  @RequireWorkspacePermission(Action.Read)
   @ResponseMessage("Get workspace invites successfully!")
   async getWorkspaceInvites(
     @Param('workspaceId') workspaceId: string,
@@ -31,6 +36,8 @@ export class WorkspaceInviteController {
   }
 
   @Post('/:workspaceId/direct')
+  @UseGuards(WorkspaceMemberGuard)
+  @RequireWorkspacePermission(Action.Manage)
   @ResponseMessage("Create direct invite successfully!")
   @ApiBody({
     type: CreateDirectInviteDto,
@@ -56,6 +63,8 @@ export class WorkspaceInviteController {
   }
 
   @Post('/:workspaceId/link')
+  @UseGuards(WorkspaceMemberGuard)
+  @RequireWorkspacePermission(Action.Manage)
   @ResponseMessage("Create invite link successfully!")
   @ApiBody({
     type: CreateInviteLinkDto,
@@ -144,6 +153,8 @@ export class WorkspaceInviteController {
   }
 
   @Patch('/:inviteId/revoke')
+  @UseGuards(WorkspaceMemberGuard)
+  @RequireWorkspacePermission(Action.Manage)
   @ResponseMessage("Revoke invite successfully!")
   async revokeInvite(
     @Param('inviteId') inviteId: string,

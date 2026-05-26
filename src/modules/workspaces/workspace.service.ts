@@ -92,12 +92,6 @@ export class WorkspaceService {
     }
 
     async getWorkspaceById(workspaceId: string, userId: string) {
-        const memberCount = await this.prisma.workspaceMember.count({
-            where: {
-                workspaceId,
-                leftAt: null,
-            },
-        });
         const workspaceMember = await this.prisma.workspaceMember.findFirst({
             where: {
                 userId,
@@ -122,6 +116,17 @@ export class WorkspaceService {
             },
         });
 
+        if (!workspaceMember) {
+            throw new BadRequestException('User is not an active member of this workspace');
+        }
+
+        const memberCount = await this.prisma.workspaceMember.count({
+            where: {
+                workspaceId,
+                leftAt: null,
+            },
+        });
+
         return {
             ...workspaceMember,
             memberCount
@@ -129,11 +134,13 @@ export class WorkspaceService {
     }
 
     async updateWorkspace(dto: UpdateWorkspaceDto, workspaceId: string, userId: string) {
-        const workspace = await this.prisma.workspace.findUnique({
-            where: { id: workspaceId },
+        const workspace = await this.prisma.workspace.findFirst({
+            where: {
+                id: workspaceId,
+                isDeleted: false,
+            },
             select: { 
                 ownerId: true,
-                isDeleted: false,
             },
         });
 
@@ -161,11 +168,13 @@ export class WorkspaceService {
     }
 
     async deleteWorkspace(workspaceId: string, userId: string) {
-        const workspace = await this.prisma.workspace.findUnique({
-            where: { id: workspaceId },
+        const workspace = await this.prisma.workspace.findFirst({
+            where: {
+                id: workspaceId,
+                isDeleted: false,
+            },
             select: { 
                 ownerId: true,
-                isDeleted: false,
             },
         });
 
@@ -182,6 +191,7 @@ export class WorkspaceService {
             data: {
                 isDeleted: true,
                 deletedAt: new Date(),
+                updatedAt: new Date(),
             },
         });
     }

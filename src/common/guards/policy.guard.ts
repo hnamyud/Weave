@@ -37,19 +37,21 @@ export class PoliciesGuard implements CanActivate {
         const user = request.user;
 
         // Tạo ability cho user đang gọi API
-        const ability = this.caslAbilityFactory.createForUser(user);
+        const ability = this.caslAbilityFactory.createForUser(user, request);
 
         // Kiểm tra tất cả các handler được khai báo trong decorator
         for (const handler of policyHandlers) {
             let isAllowed = false;
+            let message = 'Bạn không có quyền thực hiện hành động này!';
             if (typeof handler === 'function') {
-                isAllowed = (handler as any)(ability);
+                isAllowed = (handler as any)(ability, request);
             } else {
-                isAllowed = handler.handle(ability);
+                isAllowed = handler.handle(ability, request);
+                message = handler.message || message;
             }
 
             if (!isAllowed) {
-                throw new ForbiddenException(handler.message || 'Bạn không có quyền thực hiện hành động này!');
+                throw new ForbiddenException(message);
             }
         }
 

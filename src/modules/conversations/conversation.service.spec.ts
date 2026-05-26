@@ -37,6 +37,9 @@ describe('ConversationService', () => {
     },
     conversation: {
       create: jest.fn<(args: any) => Promise<any>>(),
+      findFirst: jest.fn<(args: any) => Promise<any>>(),
+      findUnique: jest.fn<(args: any) => Promise<any>>(),
+      update: jest.fn<(args: any) => Promise<any>>(),
     },
     conversationMember: {
       create: jest.fn<(args: any) => Promise<any>>(),
@@ -47,11 +50,15 @@ describe('ConversationService', () => {
   };
 
   let service: ConversationService;
+  const conversationMembersService = {
+    addConversationMember: jest.fn<(conversationId: string, userId: string) => Promise<any>>(),
+    removeConversationMember: jest.fn<(conversationId: string, userId: string) => Promise<any>>(),
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
     prisma.$transaction.mockImplementation((callback) => callback(prisma));
-    service = new ConversationService(prisma as any);
+    service = new ConversationService(prisma as any, conversationMembersService as any);
   });
 
   it('creates a conversation and adds the creator as an admin member when the creator is an active workspace member', async () => {
@@ -121,6 +128,86 @@ describe('ConversationService', () => {
       type: ConversationType.Channel,
     }, 'user-id')).rejects.toThrow(BadRequestException);
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('archives a conversation after one conversation member context lookup', async () => {
+    prisma.conversationMember.findFirst.mockResolvedValue({
+      id: 'conversation-member-id',
+      conversation: {
+        id: 'conversation-id',
+        workspaceId: 'workspace-id',
+      },
+    });
+    prisma.conversation.update.mockResolvedValue({
+      id: 'conversation-id',
+      isArchived: true,
+    });
+
+    const result = await service.archiveConversation('conversation-id', 'user-id');
+
+    expect(prisma.conversationMember.findFirst).toHaveBeenCalledWith({
+      where: {
+        conversationId: 'conversation-id',
+        userId: 'user-id',
+        leftAt: null,
+        conversation: {
+          isDeleted: false,
+          isArchived: false,
+          workspace: {
+            isDeleted: false,
+            members: {
+              some: {
+                userId: 'user-id',
+                leftAt: null,
+              },
+            },
+          },
+        },
+      },
+      include: {
+        conversation: true,
+      },
+    });
+    expect(prisma.conversation.findUnique).not.toHaveBeenCalled();
+    expect(prisma.workspaceMember.findFirst).not.toHaveBeenCalled();
+    expect(prisma.conversation.update).toHaveBeenCalledWith({
+      where: { id: 'conversation-id' },
+      data: {
+        isArchived: true,
+        updatedAt: expect.any(Date),
+      },
+    });
+    expect(result).toEqual({
+      id: 'conversation-id',
+      isArchived: true,
+    });
+  });
+
+  it('joins only public active channel conversations', async () => {
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: 'conversation-id',
+      type: ConversationType.Channel,
+      isPrivate: false,
+    });
+    conversationMembersService.addConversationMember.mockResolvedValue({
+      id: 'conversation-member-id',
+    });
+
+    await service.joinChannel('conversation-id', 'user-id');
+
+    expect(prisma.conversation.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'conversation-id',
+        isDeleted: false,
+        isArchived: false,
+        isPrivate: false,
+        type: ConversationType.Channel,
+      },
+    });
+    expect(conversationMembersService.addConversationMember).toHaveBeenCalledWith(
+      'conversation-id',
+      'user-id',
+    );
   });
 
 });

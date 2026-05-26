@@ -32,7 +32,6 @@ export class WorkspaceInviteService {
 
     async createDirectInvite(dto: CreateDirectInviteInput, createdById: string) {
         const invitedEmail = this.normalizeEmail(dto.invitedEmail);
-        await this.ensureWorkspaceMember(dto.workspaceId, createdById);
         await this.ensureEmailIsNotWorkspaceMember(dto.workspaceId, invitedEmail);
         await this.ensureNoPendingDirectInvite(dto.workspaceId, invitedEmail);
         const expiresInDays = this.getInviteExpiresInDays();
@@ -62,7 +61,6 @@ export class WorkspaceInviteService {
     }
 
     async createInviteLink(dto: CreateInviteLinkInput, createdById: string) {
-        await this.ensureWorkspaceMember(dto.workspaceId, createdById);
         this.ensureValidExpiration(dto.expiresAt);
 
         const activeLinkInvite = await this.findActiveLinkInvite(dto.workspaceId);
@@ -187,8 +185,6 @@ export class WorkspaceInviteService {
             throw new BadRequestException('Invite has already been revoked');
         }
 
-        await this.ensureWorkspaceMember(invite.workspaceId, currentUserId);
-
         try {
             return await this.prisma.workspaceInvite.update({
                 where: {
@@ -223,8 +219,6 @@ export class WorkspaceInviteService {
                 },
             } : {}),
         };
-
-        await this.ensureWorkspaceMember(input.workspaceId, input.requesterId);
 
         const totalItems = await this.prisma.workspaceInvite.count({
             where,
@@ -323,19 +317,6 @@ export class WorkspaceInviteService {
 
         if (invite.expiresAt <= new Date()) {
             throw new BadRequestException('Invite has expired');
-        }
-    }
-
-    private async ensureWorkspaceMember(workspaceId: string, userId: string) {
-        const member = await this.prisma.workspaceMember.findFirst({
-            where: {
-                workspaceId,
-                userId,
-            },
-        });
-
-        if (!member) {
-            throw new BadRequestException('User is not a member of the workspace');
         }
     }
 

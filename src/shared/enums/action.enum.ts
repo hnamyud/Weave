@@ -7,4 +7,7 @@ export enum Action {
   Archive = 'archive',
   Kick   = 'kick',
   Pin    = 'pin',
+  Join   = 'join',
+  Add    = 'add',
+  Leave  = 'leave',
 }

@@ -1,14 +1,19 @@
-import { Controller, Get, Param, Patch, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Delete, Query, UseGuards } from '@nestjs/common';
 import { WorkspaceMembersService } from './workspace_members.service';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { GetUser, ResponseMessage } from '../../common/decorators/customize.decorator';
 import { UserInterface } from 'src/shared/interfaces/users.interface';
+import { WorkspaceMemberGuard } from '../../common/guards/workspace-member.guard';
+import { RequireWorkspacePermission } from '../../common/decorators/policy.decorator';
+import { Action } from '../../shared/enums/action.enum';
 
 @Controller('workspace-members')
 export class WorkspaceMembersController {
   constructor(private readonly workspaceMembersService: WorkspaceMembersService) {}
 
   @Get('/:workspaceId')
+  @UseGuards(WorkspaceMemberGuard)
+  @RequireWorkspacePermission(Action.Read)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Get all workspace members successfully!')
   async getAllMembers(
@@ -20,6 +25,8 @@ export class WorkspaceMembersController {
   }
 
   @Patch('/:workspaceId/:userId/grant-role')
+  @UseGuards(WorkspaceMemberGuard)
+  @RequireWorkspacePermission(Action.Kick)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Grant workspace role successfully!')
   async grantRole(
@@ -31,6 +38,8 @@ export class WorkspaceMembersController {
   }
 
   @Delete('/:workspaceId/:userId/kick')
+  @UseGuards(WorkspaceMemberGuard)
+  @RequireWorkspacePermission(Action.Kick)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Kick workspace member successfully!')
   async kickMember(
@@ -41,6 +50,7 @@ export class WorkspaceMembersController {
   }
 
   @Delete('/:workspaceId/leave')
+  @UseGuards(WorkspaceMemberGuard)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Leave workspace successfully!')
   async leaveWorkspace(

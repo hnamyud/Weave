@@ -1,10 +1,13 @@
-import { Body, Controller, Param, Post, Patch, Get, Delete, Query } from '@nestjs/common';
+import { Body, Controller, Param, Post, Patch, Get, Delete, Query, UseGuards } from '@nestjs/common';
 import { WorkspaceService } from './workspace.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { GetUser, ResponseMessage } from '../../common/decorators/customize.decorator';
 import { ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { UserInterface } from '../../shared/interfaces/users.interface';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
+import { WorkspaceMemberGuard } from '../../common/guards/workspace-member.guard';
+import { RequireWorkspacePermission } from '../../common/decorators/policy.decorator';
+import { Action } from '../../shared/enums/action.enum';
 
 @Controller('workspace')
 export class WorkspaceController {
@@ -46,6 +49,8 @@ export class WorkspaceController {
   }
 
   @Get('/:id')
+  @UseGuards(WorkspaceMemberGuard)
+  @RequireWorkspacePermission(Action.Read)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Get workspace by ID successfully!')
   async getWorkspaceById(
@@ -56,6 +61,8 @@ export class WorkspaceController {
   }
 
   @Patch('/:id')
+  @UseGuards(WorkspaceMemberGuard)
+  @RequireWorkspacePermission(Action.Update)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Workspace updated successfully!')
   @ApiBody({
@@ -81,6 +88,8 @@ export class WorkspaceController {
   }
 
   @Delete('/:id')
+  @UseGuards(WorkspaceMemberGuard)
+  @RequireWorkspacePermission(Action.Delete)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Workspace deleted successfully!')
   async deleteWorkspace(

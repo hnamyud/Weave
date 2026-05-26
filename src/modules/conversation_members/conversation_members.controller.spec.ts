@@ -1,17 +1,17 @@
-import { Test, TestingModule } from '@nestjs/testing';
+jest.mock('prisma/prisma.service', () => ({
+  PrismaService: class PrismaService {},
+}), { virtual: true });
+
 import { ConversationMembersController } from './conversation_members.controller';
-import { ConversationMembersService } from './conversation_members.service';
 
 describe('ConversationMembersController', () => {
   let controller: ConversationMembersController;
+  const conversationMembersService = {
+    getConversationMembers: jest.fn(),
+  };
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [ConversationMembersController],
-      providers: [ConversationMembersService],
-    }).compile();
-
-    controller = module.get<ConversationMembersController>(ConversationMembersController);
+  beforeEach(() => {
+    controller = new ConversationMembersController(conversationMembersService as any);
   });
 
   it('should be defined', () => {
