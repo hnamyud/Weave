@@ -7,6 +7,14 @@ describe('CaslAbilityFactory', () => {
   const factory = new CaslAbilityFactory();
   const user = { id: 'user-id', email: 'user@example.com' } as any;
 
+  it('allows authenticated users to read, update, and delete their user subject', () => {
+    const ability = factory.createForUser(user);
+
+    expect(ability.can(Action.Read, 'User')).toBe(true);
+    expect(ability.can(Action.Update, 'User')).toBe(true);
+    expect(ability.can(Action.Delete, 'User')).toBe(true);
+  });
+
   it('allows workspace owner to update and delete workspace', () => {
     const ability = factory.createForUser(user, {
       workspaceMember: {

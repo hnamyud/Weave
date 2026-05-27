@@ -134,22 +134,26 @@ export class WorkspaceService {
     }
 
     async updateWorkspace(dto: UpdateWorkspaceDto, workspaceId: string, userId: string) {
-        const workspace = await this.prisma.workspace.findFirst({
+        const member = await this.prisma.workspaceMember.findFirst({
             where: {
-                id: workspaceId,
-                isDeleted: false,
+                workspaceId,
+                userId,
+                leftAt: null,
+                workspace: {
+                    isDeleted: false,
+                },
             },
-            select: { 
-                ownerId: true,
+            select: {
+                role: true,
             },
         });
 
-        if (!workspace) {
-            throw new BadRequestException('Workspace does not exist');
+        if (!member) {
+            throw new BadRequestException('User is not an active member of this workspace');
         }
 
-        if (workspace.ownerId !== userId) {
-            throw new BadRequestException('Only workspace owner can update workspace');
+        if (member.role !== WorkspaceRole.OWNER && member.role !== WorkspaceRole.ADMIN) {
+            throw new BadRequestException('Only workspace owner or admin can update workspace');
         }
 
         try {

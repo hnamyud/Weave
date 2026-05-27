@@ -5,6 +5,7 @@ import { GetUser, ResponseMessage } from '../../common/decorators/customize.deco
 import { UserInterface } from '../../shared/interfaces/users.interface';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
+import { PrivateChannelMemberDto } from './dto/private-channel-member.dto';
 import { ConversationMemberGuard } from '../../common/guards/conversation-member.guard';
 import { WorkspaceMemberGuard } from '../../common/guards/workspace-member.guard';
 import { RequireConversationPermission, RequireWorkspacePermission } from '../../common/decorators/policy.decorator';
@@ -49,6 +50,31 @@ export class ConversationController {
     @GetUser() user: UserInterface,
   ) {
     return this.conversationService.leaveChannel(conversationId, user.id);
+  }
+
+  @Post('/:conversationId/private-members')
+  @UseGuards(ConversationMemberGuard)
+  @RequireConversationPermission(Action.Add)
+  @ApiBearerAuth('access-token')
+  @ApiBody({ type: PrivateChannelMemberDto })
+  @ResponseMessage('Add member to private channel successfully!')
+  async addMemberToPrivateChannel(
+    @Param('conversationId') conversationId: string,
+    @Body() dto: PrivateChannelMemberDto,
+  ) {
+    return this.conversationService.addMemberToPrivateChannel(conversationId, dto.userId);
+  }
+
+  @Delete('/:conversationId/private-members/:userId')
+  @UseGuards(ConversationMemberGuard)
+  @RequireConversationPermission(Action.Kick)
+  @ApiBearerAuth('access-token')
+  @ResponseMessage('Remove member from private channel successfully!')
+  async removeMemberFromPrivateChannel(
+    @Param('conversationId') conversationId: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.conversationService.removeMemberFromPrivateChannel(conversationId, userId);
   }
 
   @Get('/:id')

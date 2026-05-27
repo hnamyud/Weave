@@ -57,3 +57,9 @@ export function RequireConversationPermission(action: Action) {
     createPolicyHandler(action, 'Conversation', 'You do not have permission to perform this action in conversation'),
   );
 }
+
+export function RequireUserPermission(action: Action) {
+  return CheckPolicies(
+    createPolicyHandler(action, 'User', 'You do not have permission to perform this action for user'),
+  );
+}

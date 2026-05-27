@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  InternalServerErrorException,
   Post,
   Req,
   Res,
@@ -11,18 +10,25 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { GetUser, Public, ResponseMessage } from 'src/common/decorators/customize.decorator';
+import { PasswordService } from './password.service';
+import { GetUser, Public, ResponseMessage } from '../../common/decorators/customize.decorator';
 import { LoginDto } from './dto/login.dto';
 import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { RegisterUserDto } from '../users/dto/create-user.dto';
-import { GoogleAuthGuard } from 'src/common/guards/google-auth.guard';
+import { GoogleAuthGuard } from '../../common/guards/google-auth.guard';
 import { ConfigService } from '@nestjs/config';
-import { UserInterface } from 'src/shared/interfaces/users.interface';
+import { UserInterface } from '../../shared/interfaces/users.interface';
+import { ResetPasswordDto, VerifyOtpDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ChangeEmailDto } from './dto/change-email.dto';
+import { RequireUserPermission } from '../../common/decorators/policy.decorator';
+import { Action } from '../../shared/enums/action.enum';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
+    private readonly passwordService: PasswordService,
     private configService: ConfigService
   ) {}
 
@@ -89,6 +95,58 @@ export class AuthController {
     @Body() registerUserDto: RegisterUserDto
   ) {
     return await this.authService.register(registerUserDto);
+  }
+
+  @Post('/verify-otp')
+  @Public()
+  @ResponseMessage('OTP verified successfully!')
+  @ApiBody({ type: VerifyOtpDto })
+  async verifyOtp(
+    @Body() verifyOtpDto: VerifyOtpDto,
+  ) {
+    await this.passwordService.verifyOtp(verifyOtpDto.email, verifyOtpDto.otp);
+
+    return {
+      verified: true,
+    };
+  }
+
+  @Post('/reset-password')
+  @Public()
+  @ResponseMessage('Reset password successfully!')
+  @ApiBody({ type: ResetPasswordDto })
+  async resetPassword(
+    @Body() resetPasswordDto: ResetPasswordDto,
+  ) {
+    await this.passwordService.resetPassword(resetPasswordDto);
+
+    return {
+      reset: true,
+    };
+  }
+
+  @Post('/change-password')
+  @RequireUserPermission(Action.Update)
+  @ApiBearerAuth('access-token')
+  @ResponseMessage('Change password successfully!')
+  @ApiBody({ type: ChangePasswordDto })
+  async changePassword(
+    @GetUser() user: UserInterface,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    return this.passwordService.changePassword(user.id, changePasswordDto);
+  }
+
+  @Post('/change-email')
+  @RequireUserPermission(Action.Update)
+  @ApiBearerAuth('access-token')
+  @ResponseMessage('Change email successfully!')
+  @ApiBody({ type: ChangeEmailDto })
+  async changeEmail(
+    @GetUser() user: UserInterface,
+    @Body() changeEmailDto: ChangeEmailDto,
+  ) {
+    return this.passwordService.changeEmail(user.id, changeEmailDto);
   }
 
   @Post('/refresh')

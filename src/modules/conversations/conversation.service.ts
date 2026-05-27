@@ -22,6 +22,8 @@ export class ConversationService {
     ) { }
 
     async createConversation(dto: CreateConversationDto, userId: string) {
+        await this.ensureActiveWorkspaceMember(dto.workspaceId, userId);
+
         const id = uuidv7();
         return await this.prisma.$transaction(async (tx) => {
             const conversation = await tx.conversation.create({
@@ -134,7 +136,11 @@ export class ConversationService {
 
                 _count: {
                     select: {
-                        members: true,
+                        members: {
+                            where: {
+                                leftAt: null,
+                            },
+                        },
                     },
                 },
             },
@@ -146,9 +152,6 @@ export class ConversationService {
 
         return conversation;
     }
-
-
-    // Additional methods for retrieving conversations, managing members, etc. can be added here
 
     private async getConversationMemberContext(
         conversationId: string,
@@ -236,11 +239,17 @@ export class ConversationService {
                 isDeleted: false,
                 isPrivate: true,
             },
+            select: {
+                id: true,
+                workspaceId: true,
+            },
         });
 
         if (!channel) {
             throw new BadRequestException('Channel not found');
         }
+
+        await this.ensureActiveWorkspaceMember(channel.workspaceId, userId);
 
         return await this.conversationMembersService.addConversationMember(conversationId, userId);
     }
@@ -251,6 +260,9 @@ export class ConversationService {
                 id: conversationId,
                 isDeleted: false,
                 isPrivate: true,
+            },
+            select: {
+                id: true,
             },
         });
 

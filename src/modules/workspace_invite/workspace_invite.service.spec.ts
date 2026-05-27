@@ -304,6 +304,10 @@ describe('WorkspaceInviteService', () => {
       where: {
         workspaceId: 'workspace-id',
         userId: 'requester-id',
+        leftAt: null,
+        workspace: {
+          isDeleted: false,
+        },
       },
     });
     expect(prisma.workspaceInvite.update).toHaveBeenCalledWith({
@@ -454,6 +458,10 @@ describe('WorkspaceInviteService', () => {
       where: {
         workspaceId: 'workspace-id',
         userId: 'requester-id',
+        leftAt: null,
+        workspace: {
+          isDeleted: false,
+        },
       },
     });
     expect(prisma.workspaceInvite.count).toHaveBeenCalledWith({

@@ -6,6 +6,7 @@ import { ConversationRole } from '../../shared/enums/conversation-role.enum';
 import { WorkspaceRole } from '../../shared/enums/workspace-role.enum';
 
 export type AppSubjects =
+  | 'User'
   | 'Workspace'
   | 'WorkspaceMember'
   | 'WorkspaceInvite'
@@ -38,6 +39,12 @@ export class CaslAbilityFactory {
     const isConversationAdmin = conversationRole === ConversationRole.Admin;
     const isConversationMember = conversationRole === ConversationRole.Member || isConversationAdmin;
     const canManageWorkspaceScopedResources = isWorkspaceOwner || isWorkspaceAdmin;
+
+    if (user) {
+      can(Action.Read, 'User');
+      can(Action.Update, 'User');
+      can(Action.Delete, 'User');
+    }
 
     if (workspaceRole) {
       can(Action.Read, 'Workspace');

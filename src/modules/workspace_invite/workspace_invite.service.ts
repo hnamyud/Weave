@@ -32,6 +32,7 @@ export class WorkspaceInviteService {
 
     async createDirectInvite(dto: CreateDirectInviteInput, createdById: string) {
         const invitedEmail = this.normalizeEmail(dto.invitedEmail);
+        await this.ensureActiveWorkspaceMember(dto.workspaceId, createdById);
         await this.ensureEmailIsNotWorkspaceMember(dto.workspaceId, invitedEmail);
         await this.ensureNoPendingDirectInvite(dto.workspaceId, invitedEmail);
         const expiresInDays = this.getInviteExpiresInDays();
@@ -62,6 +63,7 @@ export class WorkspaceInviteService {
 
     async createInviteLink(dto: CreateInviteLinkInput, createdById: string) {
         this.ensureValidExpiration(dto.expiresAt);
+        await this.ensureActiveWorkspaceMember(dto.workspaceId, createdById);
 
         const activeLinkInvite = await this.findActiveLinkInvite(dto.workspaceId);
         if (activeLinkInvite?.rawToken) {
@@ -185,6 +187,8 @@ export class WorkspaceInviteService {
             throw new BadRequestException('Invite has already been revoked');
         }
 
+        await this.ensureActiveWorkspaceMember(invite.workspaceId, currentUserId);
+
         try {
             return await this.prisma.workspaceInvite.update({
                 where: {
@@ -205,6 +209,7 @@ export class WorkspaceInviteService {
         const offset = (page - 1) * pageSize;
         const type = this.parseInviteType(input.type);
         const status = this.parseInviteStatus(input.status);
+        await this.ensureActiveWorkspaceMember(input.workspaceId, input.requesterId);
 
         const where = {
             workspaceId: input.workspaceId,
@@ -333,6 +338,23 @@ export class WorkspaceInviteService {
 
         if (member) {
             throw new BadRequestException('User is already a member of this workspace');
+        }
+    }
+
+    private async ensureActiveWorkspaceMember(workspaceId: string, userId: string) {
+        const member = await this.prisma.workspaceMember.findFirst({
+            where: {
+                workspaceId,
+                userId,
+                leftAt: null,
+                workspace: {
+                    isDeleted: false,
+                },
+            },
+        });
+
+        if (!member) {
+            throw new BadRequestException('User is not an active member of this workspace');
         }
     }
 

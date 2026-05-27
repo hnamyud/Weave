@@ -176,8 +176,8 @@ describe('WorkspaceService', () => {
     expect(prisma.workspaceMember.count).not.toHaveBeenCalled();
   });
 
-  it('updates only non-deleted workspaces owned by the requester', async () => {
-    prisma.workspace.findFirst.mockResolvedValue({ ownerId: 'owner-id' });
+  it('updates non-deleted workspaces when the requester is owner or admin', async () => {
+    prisma.workspaceMember.findFirst.mockResolvedValue({ role: 'ADMIN' });
     prisma.workspace.update.mockResolvedValue({
       id: 'workspace-id',
       name: 'New name',
@@ -188,15 +188,19 @@ describe('WorkspaceService', () => {
     await service.updateWorkspace({
       name: 'New name',
       slug: 'new-slug',
-    }, 'workspace-id', 'owner-id');
+    }, 'workspace-id', 'admin-id');
 
-    expect(prisma.workspace.findFirst).toHaveBeenCalledWith({
+    expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith({
       where: {
-        id: 'workspace-id',
-        isDeleted: false,
+        workspaceId: 'workspace-id',
+        userId: 'admin-id',
+        leftAt: null,
+        workspace: {
+          isDeleted: false,
+        },
       },
       select: {
-        ownerId: true,
+        role: true,
       },
     });
   });

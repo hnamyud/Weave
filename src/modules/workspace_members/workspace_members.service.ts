@@ -73,6 +73,10 @@ export class WorkspaceMembersService {
             throw new BadRequestException('User is not an active member of this workspace');
         }
 
+        if (member.role === WorkspaceRole.OWNER) {
+            throw new BadRequestException('Workspace owner role cannot be changed');
+        }
+
         return this.prisma.workspaceMember.update({
             where: {
                 workspaceId_userId: {
@@ -126,6 +130,10 @@ export class WorkspaceMembersService {
     private ensureValidWorkspaceRole(role: WorkspaceRole) {
         if (!Object.values(WorkspaceRole).includes(role)) {
             throw new BadRequestException('Invalid workspace role');
+        }
+
+        if (role === WorkspaceRole.OWNER) {
+            throw new BadRequestException('Workspace ownership must be transferred explicitly');
         }
     }
 }

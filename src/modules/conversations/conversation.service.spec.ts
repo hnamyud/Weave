@@ -210,4 +210,71 @@ describe('ConversationService', () => {
     );
   });
 
+  it('adds a member to an existing private channel', async () => {
+    prisma.conversation.findUnique.mockResolvedValue({
+      id: 'conversation-id',
+      isPrivate: true,
+      workspaceId: 'workspace-id',
+    });
+    prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'workspace-member-id' });
+    conversationMembersService.addConversationMember.mockResolvedValue({
+      id: 'conversation-member-id',
+    });
+
+    await service.addMemberToPrivateChannel('conversation-id', 'target-user-id');
+
+    expect(prisma.conversation.findUnique).toHaveBeenCalledWith({
+      where: {
+        id: 'conversation-id',
+        isDeleted: false,
+        isPrivate: true,
+      },
+      select: {
+        id: true,
+        workspaceId: true,
+      },
+    });
+    expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith({
+      where: {
+        workspaceId: 'workspace-id',
+        userId: 'target-user-id',
+        leftAt: null,
+        workspace: {
+          isDeleted: false,
+        },
+      },
+    });
+    expect(conversationMembersService.addConversationMember).toHaveBeenCalledWith(
+      'conversation-id',
+      'target-user-id',
+    );
+  });
+
+  it('removes a member from an existing private channel', async () => {
+    prisma.conversation.findUnique.mockResolvedValue({
+      id: 'conversation-id',
+      isPrivate: true,
+    });
+    conversationMembersService.removeConversationMember.mockResolvedValue({
+      id: 'conversation-member-id',
+    });
+
+    await service.removeMemberFromPrivateChannel('conversation-id', 'target-user-id');
+
+    expect(prisma.conversation.findUnique).toHaveBeenCalledWith({
+      where: {
+        id: 'conversation-id',
+        isDeleted: false,
+        isPrivate: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+    expect(conversationMembersService.removeConversationMember).toHaveBeenCalledWith(
+      'conversation-id',
+      'target-user-id',
+    );
+  });
+
 });

@@ -19,6 +19,7 @@ export class ConversationMembersService {
         const page = parsePositiveInteger(currentPage, 1, 'currentPage');
         const pageSize = parsePositiveInteger(limit, 10, 'limit');
         const offset = (page - 1) * pageSize;
+        await this.ensureConversationMember(conversationId, requesterId);
 
         const where = {
             conversationId,

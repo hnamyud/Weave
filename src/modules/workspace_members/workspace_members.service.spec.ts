@@ -121,6 +121,24 @@ describe('WorkspaceMembersService', () => {
     expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
   });
 
+  it('rejects granting workspace owner role', async () => {
+    await expect(service.grantWorkspaceRole('workspace-id', 'user-id', 'OWNER' as any))
+      .rejects.toThrow(BadRequestException);
+    expect(prisma.workspaceMember.findFirst).not.toHaveBeenCalled();
+    expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects changing the current workspace owner role', async () => {
+    prisma.workspaceMember.findFirst.mockResolvedValue({
+      id: 'member-id',
+      role: 'OWNER',
+    });
+
+    await expect(service.grantWorkspaceRole('workspace-id', 'owner-id', 'ADMIN' as any))
+      .rejects.toThrow(BadRequestException);
+    expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
+  });
+
   it('prevents the owner from leaving their workspace', async () => {
     prisma.workspaceMember.findFirst.mockResolvedValue({
       id: 'member-id',

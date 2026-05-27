@@ -33,6 +33,8 @@ describe('ConversationController metadata', () => {
     archiveConversation: jest.fn(),
     unarchiveConversation: jest.fn(),
     softDeleteConversation: jest.fn(),
+    addMemberToPrivateChannel: jest.fn(),
+    removeMemberFromPrivateChannel: jest.fn(),
   };
 
   it('uses workspace-based create policy for POST conversation', () => {
@@ -51,6 +53,14 @@ describe('ConversationController metadata', () => {
     expect(unarchiveMetadata[0].action).toBe(Action.Archive);
   });
 
+  it('uses add and kick policies for private channel member routes', () => {
+    const addMetadata = Reflect.getMetadata(CHECK_POLICIES_KEY, ConversationController.prototype.addMemberToPrivateChannel);
+    const removeMetadata = Reflect.getMetadata(CHECK_POLICIES_KEY, ConversationController.prototype.removeMemberFromPrivateChannel);
+
+    expect(addMetadata[0].action).toBe(Action.Add);
+    expect(removeMetadata[0].action).toBe(Action.Kick);
+  });
+
   it('passes create dto and authenticated user id to the service', async () => {
     const controller = new ConversationController(service as any);
     await controller.createConversation({ workspaceId: 'workspace-id', type: 'CHANNEL' } as any, { id: 'user-id' } as any);
@@ -58,6 +68,28 @@ describe('ConversationController metadata', () => {
     expect(service.createConversation).toHaveBeenCalledWith(
       { workspaceId: 'workspace-id', type: 'CHANNEL' },
       'user-id',
+    );
+  });
+
+  it('passes private channel add member input to the service', async () => {
+    const controller = new ConversationController(service as any);
+
+    await controller.addMemberToPrivateChannel('conversation-id', { userId: 'target-user-id' });
+
+    expect(service.addMemberToPrivateChannel).toHaveBeenCalledWith(
+      'conversation-id',
+      'target-user-id',
+    );
+  });
+
+  it('passes private channel remove member input to the service', async () => {
+    const controller = new ConversationController(service as any);
+
+    await controller.removeMemberFromPrivateChannel('conversation-id', 'target-user-id');
+
+    expect(service.removeMemberFromPrivateChannel).toHaveBeenCalledWith(
+      'conversation-id',
+      'target-user-id',
     );
   });
 });

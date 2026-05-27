@@ -3,6 +3,7 @@ import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { UsersService } from "../users/users.service";
 import Redis from 'ioredis';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ChangeEmailDto } from './dto/change-email.dto';
 
 @Injectable()
 export class PasswordService {
@@ -12,8 +13,14 @@ export class PasswordService {
     ) { }
 
     async verifyOtp(email: string, otp: string) {
-        const redisKey = `reset_otp:${email}`;
-        const attemptsKey = `reset_otp_attempts:${email}`;
+        return this.verifyOtpByKey(
+            this.getResetOtpKey(email),
+            this.getResetOtpAttemptsKey(email),
+            otp,
+        );
+    }
+
+    private async verifyOtpByKey(redisKey: string, attemptsKey: string, otp: string) {
         const attempts = await this.redisClient.get(attemptsKey);
 
         // Check number of attempts
@@ -45,7 +52,7 @@ export class PasswordService {
         // Kiểm tra OTP và limit thử
         await this.verifyOtp(resetPasswordDto.email, resetPasswordDto.otp);
 
-        const redisKey = `reset_otp:${resetPasswordDto.email}`;
+        const redisKey = this.getResetOtpKey(resetPasswordDto.email);
 
         const user = await this.userService.findOneByEmail(resetPasswordDto.email);
         if (!user) {
@@ -90,5 +97,53 @@ export class PasswordService {
             id: user.id,
             email: user.email,
         };
+    }
+
+    async changeEmail(userId: string, changeEmailDto: ChangeEmailDto) {
+        const newEmail = this.normalizeEmail(changeEmailDto.newEmail);
+        const user = await this.userService.findOneById(userId);
+
+        if (!user) {
+            throw new BadRequestException(`User: ${userId} does not exist`);
+        }
+
+        if (user.email === newEmail) {
+            throw new BadRequestException('New email cannot be the same as the current email');
+        }
+
+        const redisKey = this.getChangeEmailOtpKey(userId, newEmail);
+        await this.verifyOtpByKey(
+            redisKey,
+            this.getChangeEmailOtpAttemptsKey(userId, newEmail),
+            changeEmailDto.otp,
+        );
+
+        const updatedUser = await this.userService.updateUserEmail(user.id, newEmail);
+        await this.redisClient.del(redisKey);
+
+        return {
+            id: updatedUser.id,
+            email: updatedUser.email,
+        };
+    }
+
+    private getResetOtpKey(email: string) {
+        return `reset_otp:${email}`;
+    }
+
+    private getResetOtpAttemptsKey(email: string) {
+        return `reset_otp_attempts:${email}`;
+    }
+
+    private getChangeEmailOtpKey(userId: string, email: string) {
+        return `change_email_otp:${userId}:${this.normalizeEmail(email)}`;
+    }
+
+    private getChangeEmailOtpAttemptsKey(userId: string, email: string) {
+        return `change_email_otp_attempts:${userId}:${this.normalizeEmail(email)}`;
+    }
+
+    private normalizeEmail(email: string) {
+        return email.trim().toLowerCase();
     }
 }
