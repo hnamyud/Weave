@@ -28,10 +28,10 @@ describe('AuthController password routes', () => {
     buildBrowserRedirectUrl: jest.fn(),
   };
   const passwordService = {
-    verifyOtp: jest.fn<() => Promise<boolean>>(),
-    resetPassword: jest.fn<() => Promise<void>>(),
-    changePassword: jest.fn<() => Promise<any>>(),
-    changeEmail: jest.fn<() => Promise<any>>(),
+    verifyOtp: jest.fn<(email: string, otp: string) => Promise<boolean>>(),
+    resetPassword: jest.fn<(dto: any) => Promise<void>>(),
+    changePassword: jest.fn<(userId: string, dto: any) => Promise<any>>(),
+    changeEmail: jest.fn<(userId: string, dto: any) => Promise<any>>(),
   };
   const configService = {};
 

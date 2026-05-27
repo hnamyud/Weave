@@ -9,10 +9,10 @@ import { PasswordService } from './password.service';
 
 describe('PasswordService', () => {
   const redisClient = {
-    get: jest.fn<() => Promise<string | null>>(),
-    del: jest.fn<() => Promise<number>>(),
-    incr: jest.fn<() => Promise<number>>(),
-    expire: jest.fn<() => Promise<number>>(),
+    get: jest.fn<(key: string) => Promise<string | null>>(),
+    del: jest.fn<(...keys: string[]) => Promise<number>>(),
+    incr: jest.fn<(key: string) => Promise<number>>(),
+    expire: jest.fn<(key: string, seconds: number) => Promise<number>>(),
   };
 
   const userService = {
