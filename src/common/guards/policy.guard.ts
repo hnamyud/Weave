@@ -19,14 +19,14 @@ export class PoliciesGuard implements CanActivate {
     private caslAbilityFactory: CaslAbilityFactory,
   ) {}
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
+  canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
     if (isPublic) {
-      return true;
+      return Promise.resolve(true);
     }
 
     const policyHandlers =
@@ -37,7 +37,7 @@ export class PoliciesGuard implements CanActivate {
 
     // Nếu không định nghĩa policy nào thì coi như đi qua
     if (policyHandlers.length === 0) {
-      return true;
+      return Promise.resolve(true);
     }
 
     const request = context.switchToHttp().getRequest();
@@ -62,6 +62,6 @@ export class PoliciesGuard implements CanActivate {
       }
     }
 
-    return true;
+    return Promise.resolve(true);
   }
 }

@@ -59,7 +59,7 @@ export class WorkspaceInviteService {
       this.handleInviteMutationError(error);
     }
 
-    await this.sendDirectInviteEmail(invitedEmail, inviteUrl);
+    this.sendDirectInviteEmail(invitedEmail, inviteUrl);
 
     return inviteUrl;
   }
@@ -519,15 +519,16 @@ export class WorkspaceInviteService {
   }
 
   private omitRawToken<T extends { rawToken?: string | null }>(invite: T) {
-    const { rawToken, ...safeInvite } = invite;
-    return safeInvite;
+    return Object.fromEntries(
+      Object.entries(invite).filter(([key]) => key !== 'rawToken'),
+    ) as Omit<T, 'rawToken'>;
   }
 
   private normalizeEmail(email: string) {
     return email.trim().toLowerCase();
   }
 
-  private async sendDirectInviteEmail(invitedEmail: string, inviteUrl: string) {
+  private sendDirectInviteEmail(invitedEmail: string, inviteUrl: string) {
     void invitedEmail;
     void inviteUrl;
   }

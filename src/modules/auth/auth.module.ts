@@ -23,7 +23,7 @@ import { PasswordService } from './password.service';
     ConfigModule.forFeature(googleOauthConfig),
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_ACCESS_SECRET'),
         signOptions: {
           expiresIn: configService.get<string>('JWT_ACCESS_EXPIRED') as any,

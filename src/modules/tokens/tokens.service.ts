@@ -51,7 +51,7 @@ export class TokensService implements OnModuleInit {
     this.refreshExpiresInMs = refreshExpiresInMs;
   }
 
-  async createRefreshToken(payload: any) {
+  createRefreshToken(payload: any) {
     return this.jwtService.sign(payload, {
       secret: this.refreshSecret,
       expiresIn: this.refreshExpiresIn as any,
@@ -85,7 +85,7 @@ export class TokensService implements OnModuleInit {
         email: payload.email,
       };
 
-      const newRefreshToken = await this.createRefreshToken(newPayload);
+      const newRefreshToken = this.createRefreshToken(newPayload);
       const newRefreshTokenHash = this.hashToken(newRefreshToken);
 
       await this.rotateToken({

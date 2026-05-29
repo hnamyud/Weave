@@ -10,6 +10,8 @@ import { CaslAbilityFactory } from './common/casl/ability.factory';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -42,6 +44,11 @@ async function bootstrap() {
       forbidNonWhitelisted: true, // (Tùy chọn) Báo lỗi luôn nếu gửi field lạ
       transform: true,
     }),
+  );
+
+  app.useGlobalFilters(
+    new PrismaExceptionFilter(),
+    new GlobalExceptionFilter(),
   );
 
   // Transform response from controller
@@ -103,7 +110,7 @@ async function bootstrap() {
   });
 
   app.enableShutdownHooks();
-  const port = configService.get('PORT');
+  const port = configService.get<string | number>('PORT') ?? 8080;
   await app.listen(port);
 }
-bootstrap();
+void bootstrap();

@@ -10,7 +10,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async getHashPassword(password: string) {
+  getHashPassword(password: string) {
     const salt = genSaltSync(10);
     const hash = hashSync(password, salt);
     return hash;
@@ -40,7 +40,7 @@ export class UsersService {
 
   async registerUser(user: RegisterUserDto) {
     const { username, email, password, displayName } = user;
-    const hashPassword = await this.getHashPassword(password);
+    const hashPassword = this.getHashPassword(password);
 
     try {
       return await this.prisma.user.create({
@@ -115,7 +115,7 @@ export class UsersService {
   }
 
   async updateUserPassword(email: string, newPassword: string) {
-    const hashPassword = await this.getHashPassword(newPassword);
+    const hashPassword = this.getHashPassword(newPassword);
     return await this.prisma.user.update({
       where: {
         email: email,
@@ -127,7 +127,7 @@ export class UsersService {
   }
 
   async updateUserPasswordById(id: string, newPassword: string) {
-    const hashPassword = await this.getHashPassword(newPassword);
+    const hashPassword = this.getHashPassword(newPassword);
     return await this.prisma.user.update({
       where: {
         id: id,

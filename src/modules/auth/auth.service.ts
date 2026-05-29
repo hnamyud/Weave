@@ -73,8 +73,7 @@ export class AuthService {
       email,
     };
 
-    const refreshToken =
-      await this.refreshTokenService.createRefreshToken(payload);
+    const refreshToken = this.refreshTokenService.createRefreshToken(payload);
     const parser = new UAParser(request.headers['user-agent']);
 
     await this.refreshTokenService.createRefreshTokenRecord({
