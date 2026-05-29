@@ -5,10 +5,7 @@ import { PrismaModule } from 'prisma/prisma.module';
 import { ConversationMembersModule } from '../conversation_members/conversation_members.module';
 
 @Module({
-  imports: [
-    PrismaModule,
-    ConversationMembersModule,
-  ],
+  imports: [PrismaModule, ConversationMembersModule],
   controllers: [ConversationController],
   providers: [ConversationService],
   exports: [ConversationService],

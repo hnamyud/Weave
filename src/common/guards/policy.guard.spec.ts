@@ -12,13 +12,14 @@ describe('PoliciesGuard', () => {
     createForUser: jest.fn<(user: any) => any>(),
   };
 
-  const createContext = (request: any) => ({
-    getHandler: () => 'handler',
-    getClass: () => 'class',
-    switchToHttp: () => ({
-      getRequest: () => request,
-    }),
-  }) as any;
+  const createContext = (request: any) =>
+    ({
+      getHandler: () => 'handler',
+      getClass: () => 'class',
+      switchToHttp: () => ({
+        getRequest: () => request,
+      }),
+    }) as any;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -27,14 +28,22 @@ describe('PoliciesGuard', () => {
   });
 
   it('passes when route has no policy handlers', async () => {
-    const guard = new PoliciesGuard(reflector as unknown as Reflector, caslAbilityFactory as any);
+    const guard = new PoliciesGuard(
+      reflector as unknown as Reflector,
+      caslAbilityFactory,
+    );
     reflector.get.mockReturnValue(undefined);
 
-    await expect(guard.canActivate(createContext({ user: { id: 'user-id' } }))).resolves.toBe(true);
+    await expect(
+      guard.canActivate(createContext({ user: { id: 'user-id' } })),
+    ).resolves.toBe(true);
   });
 
   it('passes request to functional policy handlers', async () => {
-    const guard = new PoliciesGuard(reflector as unknown as Reflector, caslAbilityFactory as any);
+    const guard = new PoliciesGuard(
+      reflector as unknown as Reflector,
+      caslAbilityFactory,
+    );
     const request = { user: { id: 'user-id' }, workspaceId: 'workspace-id' };
     const handler = jest.fn().mockReturnValue(true);
     reflector.get.mockImplementation((key: string) => {
@@ -50,7 +59,10 @@ describe('PoliciesGuard', () => {
   });
 
   it('throws configured message when policy is denied', async () => {
-    const guard = new PoliciesGuard(reflector as unknown as Reflector, caslAbilityFactory as any);
+    const guard = new PoliciesGuard(
+      reflector as unknown as Reflector,
+      caslAbilityFactory,
+    );
     reflector.get.mockReturnValue([
       {
         message: 'Denied by policy',
@@ -58,8 +70,8 @@ describe('PoliciesGuard', () => {
       },
     ]);
 
-    await expect(guard.canActivate(createContext({ user: { id: 'user-id' } }))).rejects.toThrow(
-      new ForbiddenException('Denied by policy'),
-    );
+    await expect(
+      guard.canActivate(createContext({ user: { id: 'user-id' } })),
+    ).rejects.toThrow(new ForbiddenException('Denied by policy'));
   });
 });

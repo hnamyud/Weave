@@ -22,10 +22,22 @@ describe('UsersController', () => {
   }
 
   it('uses user policies for all user profile routes', () => {
-    const getMePolicy = Reflect.getMetadata(CHECK_POLICIES_KEY, UsersController.prototype.getMyProfile);
-    const getUserPolicy = Reflect.getMetadata(CHECK_POLICIES_KEY, UsersController.prototype.getUserProfile);
-    const updateMePolicy = Reflect.getMetadata(CHECK_POLICIES_KEY, UsersController.prototype.updateMyProfile);
-    const deleteMePolicy = Reflect.getMetadata(CHECK_POLICIES_KEY, UsersController.prototype.deleteMyAccount);
+    const getMePolicy = Reflect.getMetadata(
+      CHECK_POLICIES_KEY,
+      UsersController.prototype.getMyProfile,
+    );
+    const getUserPolicy = Reflect.getMetadata(
+      CHECK_POLICIES_KEY,
+      UsersController.prototype.getUserProfile,
+    );
+    const updateMePolicy = Reflect.getMetadata(
+      CHECK_POLICIES_KEY,
+      UsersController.prototype.updateMyProfile,
+    );
+    const deleteMePolicy = Reflect.getMetadata(
+      CHECK_POLICIES_KEY,
+      UsersController.prototype.deleteMyAccount,
+    );
 
     expect(getMePolicy[0].action).toBe(Action.Read);
     expect(getUserPolicy[0].action).toBe(Action.Read);

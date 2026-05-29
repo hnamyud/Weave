@@ -1,14 +1,29 @@
-import { Body, Controller, Param, Post, Get, Patch, Delete, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Param,
+  Post,
+  Get,
+  Patch,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { ConversationService } from './conversation.service';
 import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
-import { GetUser, ResponseMessage } from '../../common/decorators/customize.decorator';
+import {
+  GetUser,
+  ResponseMessage,
+} from '../../common/decorators/customize.decorator';
 import { UserInterface } from '../../shared/interfaces/users.interface';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { PrivateChannelMemberDto } from './dto/private-channel-member.dto';
 import { ConversationMemberGuard } from '../../common/guards/conversation-member.guard';
 import { WorkspaceMemberGuard } from '../../common/guards/workspace-member.guard';
-import { RequireConversationPermission, RequireWorkspacePermission } from '../../common/decorators/policy.decorator';
+import {
+  RequireConversationPermission,
+  RequireWorkspacePermission,
+} from '../../common/decorators/policy.decorator';
 import { Action } from '../../shared/enums/action.enum';
 
 @Controller('conversation')
@@ -62,7 +77,10 @@ export class ConversationController {
     @Param('conversationId') conversationId: string,
     @Body() dto: PrivateChannelMemberDto,
   ) {
-    return this.conversationService.addMemberToPrivateChannel(conversationId, dto.userId);
+    return this.conversationService.addMemberToPrivateChannel(
+      conversationId,
+      dto.userId,
+    );
   }
 
   @Delete('/:conversationId/private-members/:userId')
@@ -74,7 +92,10 @@ export class ConversationController {
     @Param('conversationId') conversationId: string,
     @Param('userId') userId: string,
   ) {
-    return this.conversationService.removeMemberFromPrivateChannel(conversationId, userId);
+    return this.conversationService.removeMemberFromPrivateChannel(
+      conversationId,
+      userId,
+    );
   }
 
   @Get('/:id')
@@ -86,7 +107,10 @@ export class ConversationController {
     @Param('id') conversationId: string,
     @GetUser() user: UserInterface,
   ) {
-    return this.conversationService.getConversationById(conversationId, user.id);
+    return this.conversationService.getConversationById(
+      conversationId,
+      user.id,
+    );
   }
 
   @Patch('/:id')
@@ -100,7 +124,11 @@ export class ConversationController {
     @Body() dto: UpdateConversationDto,
     @GetUser() user: UserInterface,
   ) {
-    return this.conversationService.updateConversation(conversationId, dto, user.id);
+    return this.conversationService.updateConversation(
+      conversationId,
+      dto,
+      user.id,
+    );
   }
 
   @Patch('/:id/archive')
@@ -112,7 +140,10 @@ export class ConversationController {
     @Param('id') conversationId: string,
     @GetUser() user: UserInterface,
   ) {
-    return this.conversationService.archiveConversation(conversationId, user.id);
+    return this.conversationService.archiveConversation(
+      conversationId,
+      user.id,
+    );
   }
 
   @Patch('/:id/unarchive')
@@ -124,7 +155,10 @@ export class ConversationController {
     @Param('id') conversationId: string,
     @GetUser() user: UserInterface,
   ) {
-    return this.conversationService.unarchiveConversation(conversationId, user.id);
+    return this.conversationService.unarchiveConversation(
+      conversationId,
+      user.id,
+    );
   }
 
   @Delete('/:id')
@@ -136,6 +170,9 @@ export class ConversationController {
     @Param('id') conversationId: string,
     @GetUser() user: UserInterface,
   ) {
-    return this.conversationService.softDeleteConversation(conversationId, user.id);
+    return this.conversationService.softDeleteConversation(
+      conversationId,
+      user.id,
+    );
   }
 }

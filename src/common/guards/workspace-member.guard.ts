@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 
 @Injectable()
@@ -44,9 +49,12 @@ export class WorkspaceMemberGuard implements CanActivate {
     params?: Record<string, string>;
     body?: Record<string, unknown>;
   }) {
-    const directWorkspaceId = request.params?.workspaceId
-      ?? request.params?.id
-      ?? (typeof request.body?.workspaceId === 'string' ? request.body.workspaceId : undefined);
+    const directWorkspaceId =
+      request.params?.workspaceId ??
+      request.params?.id ??
+      (typeof request.body?.workspaceId === 'string'
+        ? request.body.workspaceId
+        : undefined);
 
     if (directWorkspaceId) {
       return directWorkspaceId;
@@ -54,7 +62,9 @@ export class WorkspaceMemberGuard implements CanActivate {
 
     const inviteId = request.params?.inviteId;
     if (!inviteId) {
-      return this.resolveWorkspaceIdFromConversation(request.params?.conversationId);
+      return this.resolveWorkspaceIdFromConversation(
+        request.params?.conversationId,
+      );
     }
 
     const invite = await this.prisma.workspaceInvite.findUnique({

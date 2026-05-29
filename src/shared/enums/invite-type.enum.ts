@@ -1,4 +1,4 @@
 export enum WorkspaceInviteType {
-    Direct = 'DIRECT',
-    Link = 'LINK'
+  Direct = 'DIRECT',
+  Link = 'LINK',
 }

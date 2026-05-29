@@ -7,18 +7,15 @@ export const helmetConfig: HelmetOptions = {
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: [
-        "'self'", 
+        "'self'",
         "'unsafe-inline'", // Cho Swagger UI
-        "https://fonts.googleapis.com"
+        'https://fonts.googleapis.com',
       ],
       scriptSrc: [
         "'self'",
         // Nếu dùng external scripts
       ],
-      fontSrc: [
-        "'self'",
-        "https://fonts.gstatic.com"
-      ],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: [],
     },
@@ -29,12 +26,12 @@ export const helmetConfig: HelmetOptions = {
 
   // DNS Prefetch Control
   dnsPrefetchControl: {
-    allow: false
+    allow: false,
   },
 
   // Frame Guard - Chống clickjacking
   frameguard: {
-    action: 'deny'
+    action: 'deny',
   },
 
   // Hide X-Powered-By header
@@ -44,7 +41,7 @@ export const helmetConfig: HelmetOptions = {
   hsts: {
     maxAge: 31536000, // 1 year
     includeSubDomains: true,
-    preload: true
+    preload: true,
   },
 
   // IE No Open - IE8+ security
@@ -61,7 +58,7 @@ export const helmetConfig: HelmetOptions = {
 
   // Referrer Policy
   referrerPolicy: {
-    policy: ["no-referrer", "strict-origin-when-cross-origin"]
+    policy: ['no-referrer', 'strict-origin-when-cross-origin'],
   },
 
   // X-XSS Protection

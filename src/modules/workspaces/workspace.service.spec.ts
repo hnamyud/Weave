@@ -1,9 +1,13 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-jest.mock('prisma/prisma.service', () => ({
-  PrismaService: class PrismaService {},
-}), { virtual: true });
+jest.mock(
+  'prisma/prisma.service',
+  () => ({
+    PrismaService: class PrismaService {},
+  }),
+  { virtual: true },
+);
 
 jest.mock('uuid', () => ({
   v7: () => 'workspace-id',
@@ -13,7 +17,8 @@ import { WorkspaceService } from './workspace.service';
 
 describe('WorkspaceService', () => {
   const prisma = {
-    $transaction: jest.fn<(callback: (tx: any) => Promise<any>) => Promise<any>>(),
+    $transaction:
+      jest.fn<(callback: (tx: any) => Promise<any>) => Promise<any>>(),
     workspace: {
       create: jest.fn<(args: any) => Promise<any>>(),
       findFirst: jest.fn<(args: any) => Promise<any>>(),
@@ -45,10 +50,13 @@ describe('WorkspaceService', () => {
     });
     prisma.workspaceMember.create.mockResolvedValue({ id: 'member-id' });
 
-    const result = await service.createWorkspace({
-      name: 'Workspace',
-      slug: 'workspace',
-    }, 'owner-id');
+    const result = await service.createWorkspace(
+      {
+        name: 'Workspace',
+        slug: 'workspace',
+      },
+      'owner-id',
+    );
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(prisma.workspace.create).toHaveBeenCalledWith({
@@ -80,19 +88,29 @@ describe('WorkspaceService', () => {
   it('maps duplicate workspace create errors to ConflictException', async () => {
     prisma.workspace.create.mockRejectedValue({ code: 'P2002' });
 
-    await expect(service.createWorkspace({
-      name: 'Workspace',
-      slug: 'workspace',
-    }, 'owner-id')).rejects.toThrow(ConflictException);
+    await expect(
+      service.createWorkspace(
+        {
+          name: 'Workspace',
+          slug: 'workspace',
+        },
+        'owner-id',
+      ),
+    ).rejects.toThrow(ConflictException);
   });
 
   it('maps invalid owner create errors to BadRequestException', async () => {
     prisma.workspace.create.mockRejectedValue({ code: 'P2003' });
 
-    await expect(service.createWorkspace({
-      name: 'Workspace',
-      slug: 'workspace',
-    }, 'owner-id')).rejects.toThrow(BadRequestException);
+    await expect(
+      service.createWorkspace(
+        {
+          name: 'Workspace',
+          slug: 'workspace',
+        },
+        'owner-id',
+      ),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('gets active workspaces for a user with pagination metadata', async () => {
@@ -121,14 +139,16 @@ describe('WorkspaceService', () => {
       },
     };
     expect(prisma.workspaceMember.count).toHaveBeenCalledWith({ where });
-    expect(prisma.workspaceMember.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where,
-      skip: 0,
-      take: 10,
-      orderBy: {
-        joinedAt: 'desc',
-      },
-    }));
+    expect(prisma.workspaceMember.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where,
+        skip: 0,
+        take: 10,
+        orderBy: {
+          joinedAt: 'desc',
+        },
+      }),
+    );
     expect(result.meta).toEqual({
       current: 1,
       pageSize: 10,
@@ -171,8 +191,9 @@ describe('WorkspaceService', () => {
   it('rejects workspace detail when the requester is not an active member', async () => {
     prisma.workspaceMember.findFirst.mockResolvedValue(null);
 
-    await expect(service.getWorkspaceById('workspace-id', 'user-id'))
-      .rejects.toThrow(BadRequestException);
+    await expect(
+      service.getWorkspaceById('workspace-id', 'user-id'),
+    ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceMember.count).not.toHaveBeenCalled();
   });
 
@@ -185,10 +206,14 @@ describe('WorkspaceService', () => {
       iconUrl: null,
     });
 
-    await service.updateWorkspace({
-      name: 'New name',
-      slug: 'new-slug',
-    }, 'workspace-id', 'admin-id');
+    await service.updateWorkspace(
+      {
+        name: 'New name',
+        slug: 'new-slug',
+      },
+      'workspace-id',
+      'admin-id',
+    );
 
     expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith({
       where: {

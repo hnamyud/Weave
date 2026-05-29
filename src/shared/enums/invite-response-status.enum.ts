@@ -1,4 +1,4 @@
 export enum WorkspaceInviteResponseStatus {
-    Accepted = 'ACCEPTED',
-    Denied = 'DENIED'
+  Accepted = 'ACCEPTED',
+  Denied = 'DENIED',
 }

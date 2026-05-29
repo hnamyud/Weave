@@ -4,11 +4,9 @@ import { WorkspaceInviteController } from './workspace_invite.controller';
 import { PrismaModule } from 'prisma/prisma.module';
 
 @Module({
-  imports: [
-    PrismaModule,
-  ],
+  imports: [PrismaModule],
   controllers: [WorkspaceInviteController],
   providers: [WorkspaceInviteService],
-  exports: [WorkspaceInviteService]
+  exports: [WorkspaceInviteService],
 })
 export class WorkspaceInviteModule {}

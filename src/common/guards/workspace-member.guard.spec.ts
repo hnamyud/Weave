@@ -1,8 +1,12 @@
 import { ForbiddenException } from '@nestjs/common';
 
-jest.mock('prisma/prisma.service', () => ({
-  PrismaService: class PrismaService {},
-}), { virtual: true });
+jest.mock(
+  'prisma/prisma.service',
+  () => ({
+    PrismaService: class PrismaService {},
+  }),
+  { virtual: true },
+);
 
 import { WorkspaceMemberGuard } from './workspace-member.guard';
 
@@ -19,11 +23,12 @@ describe('WorkspaceMemberGuard', () => {
     },
   };
 
-  const createContext = (request: any) => ({
-    switchToHttp: () => ({
-      getRequest: () => request,
-    }),
-  }) as any;
+  const createContext = (request: any) =>
+    ({
+      switchToHttp: () => ({
+        getRequest: () => request,
+      }),
+    }) as any;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -81,11 +86,13 @@ describe('WorkspaceMemberGuard', () => {
 
     await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
 
-    expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        workspaceId: 'workspace-id',
+    expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          workspaceId: 'workspace-id',
+        }),
       }),
-    }));
+    );
   });
 
   it('resolves workspaceId from inviteId for revoke invite routes', async () => {
@@ -95,7 +102,9 @@ describe('WorkspaceMemberGuard', () => {
       params: { inviteId: 'invite-id' },
       body: {},
     };
-    prisma.workspaceInvite.findUnique.mockResolvedValue({ workspaceId: 'workspace-id' });
+    prisma.workspaceInvite.findUnique.mockResolvedValue({
+      workspaceId: 'workspace-id',
+    });
     prisma.workspaceMember.findFirst.mockResolvedValue({
       workspaceId: 'workspace-id',
       workspace: { id: 'workspace-id' },
@@ -111,11 +120,13 @@ describe('WorkspaceMemberGuard', () => {
         workspaceId: true,
       },
     });
-    expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        workspaceId: 'workspace-id',
+    expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          workspaceId: 'workspace-id',
+        }),
       }),
-    }));
+    );
   });
 
   it('resolves workspaceId from conversationId for public conversation join routes', async () => {
@@ -125,7 +136,9 @@ describe('WorkspaceMemberGuard', () => {
       params: { conversationId: 'conversation-id' },
       body: {},
     };
-    prisma.conversation.findFirst.mockResolvedValue({ workspaceId: 'workspace-id' });
+    prisma.conversation.findFirst.mockResolvedValue({
+      workspaceId: 'workspace-id',
+    });
     prisma.workspaceMember.findFirst.mockResolvedValue({
       workspaceId: 'workspace-id',
       workspace: { id: 'workspace-id' },
@@ -142,11 +155,13 @@ describe('WorkspaceMemberGuard', () => {
         workspaceId: true,
       },
     });
-    expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        workspaceId: 'workspace-id',
+    expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          workspaceId: 'workspace-id',
+        }),
       }),
-    }));
+    );
   });
 
   it('rejects when user is not an active workspace member', async () => {
@@ -158,6 +173,8 @@ describe('WorkspaceMemberGuard', () => {
     };
     prisma.workspaceMember.findFirst.mockResolvedValue(null);
 
-    await expect(guard.canActivate(createContext(request))).rejects.toThrow(ForbiddenException);
+    await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 });

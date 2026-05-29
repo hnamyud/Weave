@@ -1,7 +1,20 @@
-import { Body, Controller, Param, Post, Patch, Get, Delete, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Param,
+  Post,
+  Patch,
+  Get,
+  Delete,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { WorkspaceService } from './workspace.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
-import { GetUser, ResponseMessage } from '../../common/decorators/customize.decorator';
+import {
+  GetUser,
+  ResponseMessage,
+} from '../../common/decorators/customize.decorator';
 import { ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { UserInterface } from '../../shared/interfaces/users.interface';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
@@ -11,7 +24,7 @@ import { Action } from '../../shared/enums/action.enum';
 
 @Controller('workspace')
 export class WorkspaceController {
-  constructor(private readonly workspaceService: WorkspaceService) { }
+  constructor(private readonly workspaceService: WorkspaceService) {}
 
   @Post()
   @ApiBearerAuth('access-token')
@@ -26,26 +39,30 @@ export class WorkspaceController {
           name: 'My Workspace',
           slug: 'my-workspace',
           iconUrl: 'https://example.com/icon.png',
-        }
-      }
-    }
+        },
+      },
+    },
   })
   async createWorkspace(
     @Body() createWorkspaceDto: CreateWorkspaceDto,
-    @GetUser() user: UserInterface
+    @GetUser() user: UserInterface,
   ) {
     return this.workspaceService.createWorkspace(createWorkspaceDto, user.id);
   }
 
   @Get('/')
   @ApiBearerAuth('access-token')
-  @ResponseMessage('Get all user\'s workspaces successfully!')
+  @ResponseMessage("Get all user's workspaces successfully!")
   async getAllWorkspaces(
     @GetUser() user: UserInterface,
     @Query('current') currentPage: string,
     @Query('pageSize') limit: string,
   ) {
-    return this.workspaceService.getAllWorkspaceById( +currentPage, +limit, user.id);
+    return this.workspaceService.getAllWorkspaceById(
+      +currentPage,
+      +limit,
+      user.id,
+    );
   }
 
   @Get('/:id')
@@ -55,7 +72,7 @@ export class WorkspaceController {
   @ResponseMessage('Get workspace by ID successfully!')
   async getWorkspaceById(
     @GetUser() user: UserInterface,
-    @Param('id') workspaceId: string
+    @Param('id') workspaceId: string,
   ) {
     return this.workspaceService.getWorkspaceById(workspaceId, user.id);
   }
@@ -75,16 +92,20 @@ export class WorkspaceController {
           name: 'My Workspace',
           slug: 'my-workspace',
           iconUrl: 'https://example.com/icon.png',
-        }
-      }
-    }
+        },
+      },
+    },
   })
   async updateWorkspace(
     @GetUser() user: UserInterface,
     @Param('id') workspaceId: string,
-    @Body() updateWorkspaceDto: UpdateWorkspaceDto
+    @Body() updateWorkspaceDto: UpdateWorkspaceDto,
   ) {
-    return this.workspaceService.updateWorkspace(updateWorkspaceDto, workspaceId, user.id);
+    return this.workspaceService.updateWorkspace(
+      updateWorkspaceDto,
+      workspaceId,
+      user.id,
+    );
   }
 
   @Delete('/:id')
@@ -94,7 +115,7 @@ export class WorkspaceController {
   @ResponseMessage('Workspace deleted successfully!')
   async deleteWorkspace(
     @GetUser() user: UserInterface,
-    @Param('id') workspaceId: string
+    @Param('id') workspaceId: string,
   ) {
     return this.workspaceService.deleteWorkspace(workspaceId, user.id);
   }

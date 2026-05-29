@@ -1,9 +1,13 @@
 import { BadRequestException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-jest.mock('prisma/prisma.service', () => ({
-  PrismaService: class PrismaService {},
-}), { virtual: true });
+jest.mock(
+  'prisma/prisma.service',
+  () => ({
+    PrismaService: class PrismaService {},
+  }),
+  { virtual: true },
+);
 
 jest.mock('uuid', () => ({
   v7: () => 'workspace-member-id',
@@ -54,20 +58,23 @@ describe('WorkspaceMembersService', () => {
         leftAt: null,
       },
     });
-    expect(prisma.workspaceMember.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: {
-        workspaceId: 'workspace-id',
-        workspace: {
-          isDeleted: false,
+    expect(prisma.workspaceMember.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          workspaceId: 'workspace-id',
+          workspace: {
+            isDeleted: false,
+          },
+          leftAt: null,
         },
-        leftAt: null,
-      },
-    }));
+      }),
+    );
   });
 
   it('rejects invalid pagination values', async () => {
-    await expect(service.getWorkspaceMembers(0, 10, 'workspace-id'))
-      .rejects.toThrow(BadRequestException);
+    await expect(
+      service.getWorkspaceMembers(0, 10, 'workspace-id'),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('grants roles only to active members in non-deleted workspaces', async () => {
@@ -77,7 +84,11 @@ describe('WorkspaceMembersService', () => {
       role: 'ADMIN',
     });
 
-    const result = await service.grantWorkspaceRole('workspace-id', 'user-id', 'ADMIN' as any);
+    const result = await service.grantWorkspaceRole(
+      'workspace-id',
+      'user-id',
+      'ADMIN',
+    );
 
     expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith({
       where: {
@@ -109,21 +120,24 @@ describe('WorkspaceMembersService', () => {
   it('rejects granting roles to missing or inactive members', async () => {
     prisma.workspaceMember.findFirst.mockResolvedValue(null);
 
-    await expect(service.grantWorkspaceRole('workspace-id', 'user-id', 'ADMIN' as any))
-      .rejects.toThrow(BadRequestException);
+    await expect(
+      service.grantWorkspaceRole('workspace-id', 'user-id', 'ADMIN' as any),
+    ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
   });
 
   it('rejects invalid workspace roles', async () => {
-    await expect(service.grantWorkspaceRole('workspace-id', 'user-id', 'INVALID' as any))
-      .rejects.toThrow(BadRequestException);
+    await expect(
+      service.grantWorkspaceRole('workspace-id', 'user-id', 'INVALID' as any),
+    ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceMember.findFirst).not.toHaveBeenCalled();
     expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
   });
 
   it('rejects granting workspace owner role', async () => {
-    await expect(service.grantWorkspaceRole('workspace-id', 'user-id', 'OWNER' as any))
-      .rejects.toThrow(BadRequestException);
+    await expect(
+      service.grantWorkspaceRole('workspace-id', 'user-id', 'OWNER' as any),
+    ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceMember.findFirst).not.toHaveBeenCalled();
     expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
   });
@@ -134,8 +148,9 @@ describe('WorkspaceMembersService', () => {
       role: 'OWNER',
     });
 
-    await expect(service.grantWorkspaceRole('workspace-id', 'owner-id', 'ADMIN' as any))
-      .rejects.toThrow(BadRequestException);
+    await expect(
+      service.grantWorkspaceRole('workspace-id', 'owner-id', 'ADMIN' as any),
+    ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
   });
 
@@ -145,8 +160,9 @@ describe('WorkspaceMembersService', () => {
       role: 'OWNER',
     });
 
-    await expect(service.kickMember('workspace-id', 'owner-id'))
-      .rejects.toThrow(BadRequestException);
+    await expect(
+      service.kickMember('workspace-id', 'owner-id'),
+    ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
   });
 });

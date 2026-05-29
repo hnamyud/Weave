@@ -7,6 +7,6 @@ import { PrismaModule } from 'prisma/prisma.module';
   imports: [PrismaModule],
   controllers: [WorkspaceMembersController],
   providers: [WorkspaceMembersService],
-  exports: [WorkspaceMembersService]
+  exports: [WorkspaceMembersService],
 })
 export class WorkspaceMembersModule {}

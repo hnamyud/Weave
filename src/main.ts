@@ -27,10 +27,7 @@ async function bootstrap() {
     origin: configService.get<string>('FE_DOMAIN'), // FE domain
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-    ],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   // Use JWT global
@@ -39,13 +36,13 @@ async function bootstrap() {
     new PoliciesGuard(reflector, app.get(CaslAbilityFactory)),
   );
 
-  app.useGlobalPipes(new ValidationPipe(
-    {
+  app.useGlobalPipes(
+    new ValidationPipe({
       whitelist: true, // Tự động bỏ các field không có trong DTO
       forbidNonWhitelisted: true, // (Tùy chọn) Báo lỗi luôn nếu gửi field lạ
-      transform: true
-    }
-  ));
+      transform: true,
+    }),
+  );
 
   // Transform response from controller
   app.useGlobalInterceptors(new TransformInterceptor(reflector));
@@ -60,7 +57,8 @@ async function bootstrap() {
   // Swagger setup
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Weave API')
-    .setDescription(`
+    .setDescription(
+      `
       ## Weave Backend API Documentation
       Weave is a real-time collaboration and messaging platform API.
 
@@ -72,7 +70,8 @@ async function bootstrap() {
       ### 📱 API Versioning
       - All endpoints are prefixed with \`/api/v1/\`
       - Default version: v1
-      `)
+      `,
+    )
     .setVersion('1.0')
     .addServer('http://localhost:8080', 'Development Server')
     .addBearerAuth(
@@ -82,7 +81,7 @@ async function bootstrap() {
         bearerFormat: 'JWT',
         name: 'JWT',
         description: 'Enter JWT token (without Bearer prefix)',
-        in: 'header'
+        in: 'header',
       },
       'access-token',
     )
@@ -93,18 +92,18 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true, // Remember JWT token
-      tagsSorter: 'alpha',        // Sort tags alphabetically
-      operationsSorter: 'alpha',  // Sort operations alphabetically  
-      docExpansion: 'none',       // Collapse all sections initially
-      filter: true,               // Enable search filter
-      showRequestHeaders: true,   // Show request headers
+      tagsSorter: 'alpha', // Sort tags alphabetically
+      operationsSorter: 'alpha', // Sort operations alphabetically
+      docExpansion: 'none', // Collapse all sections initially
+      filter: true, // Enable search filter
+      showRequestHeaders: true, // Show request headers
     },
     customSiteTitle: 'Weave API Docs', // Custom title
-    customfavIcon: '/favicon.ico',               // Custom favicon
+    customfavIcon: '/favicon.ico', // Custom favicon
   });
-  
-  app.enableShutdownHooks()
-  const port = configService.get('PORT')
+
+  app.enableShutdownHooks();
+  const port = configService.get('PORT');
   await app.listen(port);
 }
 bootstrap();

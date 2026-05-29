@@ -1,4 +1,3 @@
-
 import { describe, expect, it, jest } from '@jest/globals';
 
 jest.mock('../../common/guards/google-auth.guard', () => ({
@@ -38,17 +37,34 @@ describe('AuthController password routes', () => {
 
   function createController() {
     jest.clearAllMocks();
-    return new AuthController(authService as any, passwordService as any, configService as any);
+    return new AuthController(
+      authService as any,
+      passwordService as any,
+      configService as any,
+    );
   }
 
   it('marks verify OTP and reset password routes as public', () => {
-    expect(Reflect.getMetadata(IS_PUBLIC_KEY, AuthController.prototype.verifyOtp)).toBe(true);
-    expect(Reflect.getMetadata(IS_PUBLIC_KEY, AuthController.prototype.resetPassword)).toBe(true);
+    expect(
+      Reflect.getMetadata(IS_PUBLIC_KEY, AuthController.prototype.verifyOtp),
+    ).toBe(true);
+    expect(
+      Reflect.getMetadata(
+        IS_PUBLIC_KEY,
+        AuthController.prototype.resetPassword,
+      ),
+    ).toBe(true);
   });
 
   it('uses user update policy for authenticated password and email changes', () => {
-    const changePasswordPolicy = Reflect.getMetadata(CHECK_POLICIES_KEY, AuthController.prototype.changePassword);
-    const changeEmailPolicy = Reflect.getMetadata(CHECK_POLICIES_KEY, AuthController.prototype.changeEmail);
+    const changePasswordPolicy = Reflect.getMetadata(
+      CHECK_POLICIES_KEY,
+      AuthController.prototype.changePassword,
+    );
+    const changeEmailPolicy = Reflect.getMetadata(
+      CHECK_POLICIES_KEY,
+      AuthController.prototype.changeEmail,
+    );
 
     expect(changePasswordPolicy).toHaveLength(1);
     expect(changePasswordPolicy[0].action).toBe(Action.Update);
@@ -65,7 +81,10 @@ describe('AuthController password routes', () => {
       otp: '123456',
     });
 
-    expect(passwordService.verifyOtp).toHaveBeenCalledWith('user@example.com', '123456');
+    expect(passwordService.verifyOtp).toHaveBeenCalledWith(
+      'user@example.com',
+      '123456',
+    );
     expect(result).toEqual({ verified: true });
   });
 
@@ -95,7 +114,10 @@ describe('AuthController password routes', () => {
       email: 'user@example.com',
     });
 
-    const result = await controller.changePassword({ id: 'user-id' } as any, dto);
+    const result = await controller.changePassword(
+      { id: 'user-id' } as any,
+      dto,
+    );
 
     expect(passwordService.changePassword).toHaveBeenCalledWith('user-id', dto);
     expect(result).toEqual({

@@ -33,7 +33,7 @@ import { CaslModule } from './common/casl/casl.module';
     UsersModule,
     WorkspaceMembersModule,
     WorkspaceInviteModule,
-    WorkspaceModule
+    WorkspaceModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,6 +1,10 @@
-jest.mock('prisma/prisma.service', () => ({
-  PrismaService: class PrismaService {},
-}), { virtual: true });
+jest.mock(
+  'prisma/prisma.service',
+  () => ({
+    PrismaService: class PrismaService {},
+  }),
+  { virtual: true },
+);
 
 jest.mock('./conversation_members.service', () => ({
   ConversationMembersService: class ConversationMembersService {},
@@ -15,7 +19,9 @@ describe('ConversationMembersController', () => {
   };
 
   beforeEach(() => {
-    controller = new ConversationMembersController(conversationMembersService as any);
+    controller = new ConversationMembersController(
+      conversationMembersService as any,
+    );
   });
 
   it('should be defined', () => {

@@ -1,7 +1,18 @@
-import { Controller, Get, Param, Patch, Delete, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Delete,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { WorkspaceMembersService } from './workspace_members.service';
 import { ApiBearerAuth } from '@nestjs/swagger';
-import { GetUser, ResponseMessage } from '../../common/decorators/customize.decorator';
+import {
+  GetUser,
+  ResponseMessage,
+} from '../../common/decorators/customize.decorator';
 import { UserInterface } from 'src/shared/interfaces/users.interface';
 import { WorkspaceMemberGuard } from '../../common/guards/workspace-member.guard';
 import { RequireWorkspacePermission } from '../../common/decorators/policy.decorator';
@@ -9,7 +20,9 @@ import { Action } from '../../shared/enums/action.enum';
 
 @Controller('workspace-members')
 export class WorkspaceMembersController {
-  constructor(private readonly workspaceMembersService: WorkspaceMembersService) {}
+  constructor(
+    private readonly workspaceMembersService: WorkspaceMembersService,
+  ) {}
 
   @Get('/:workspaceId')
   @UseGuards(WorkspaceMemberGuard)
@@ -21,7 +34,11 @@ export class WorkspaceMembersController {
     @Query('current') currentPage: string,
     @Query('pageSize') limit: string,
   ) {
-    return this.workspaceMembersService.getWorkspaceMembers(+currentPage, +limit, workspaceId);
+    return this.workspaceMembersService.getWorkspaceMembers(
+      +currentPage,
+      +limit,
+      workspaceId,
+    );
   }
 
   @Patch('/:workspaceId/:userId/grant-role')
@@ -34,7 +51,11 @@ export class WorkspaceMembersController {
     @Param('userId') userId: string,
     @Query('role') role: string,
   ) {
-    return this.workspaceMembersService.grantWorkspaceRole(workspaceId, userId, role as any);
+    return this.workspaceMembersService.grantWorkspaceRole(
+      workspaceId,
+      userId,
+      role as any,
+    );
   }
 
   @Delete('/:workspaceId/:userId/kick')

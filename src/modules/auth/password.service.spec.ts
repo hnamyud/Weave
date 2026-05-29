@@ -17,8 +17,10 @@ describe('PasswordService', () => {
 
   const userService = {
     findOneById: jest.fn<(id: string) => Promise<any>>(),
-    isValidPassword: jest.fn<(password: string, hash: string) => Promise<boolean>>(),
-    updateUserPasswordById: jest.fn<(id: string, newPassword: string) => Promise<void>>(),
+    isValidPassword:
+      jest.fn<(password: string, hash: string) => Promise<boolean>>(),
+    updateUserPasswordById:
+      jest.fn<(id: string, newPassword: string) => Promise<void>>(),
     updateUserEmail: jest.fn<(id: string, newEmail: string) => Promise<any>>(),
   };
 
@@ -105,9 +107,7 @@ describe('PasswordService', () => {
       id: 'user-id',
       email: 'old@example.com',
     });
-    redisClient.get
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce('123456');
+    redisClient.get.mockResolvedValueOnce(null).mockResolvedValueOnce('123456');
     userService.updateUserEmail.mockResolvedValue({
       id: 'user-id',
       email: 'new@example.com',
@@ -131,8 +131,12 @@ describe('PasswordService', () => {
       'user-id',
       'new@example.com',
     );
-    expect(redisClient.del).toHaveBeenCalledWith('change_email_otp_attempts:user-id:new@example.com');
-    expect(redisClient.del).toHaveBeenCalledWith('change_email_otp:user-id:new@example.com');
+    expect(redisClient.del).toHaveBeenCalledWith(
+      'change_email_otp_attempts:user-id:new@example.com',
+    );
+    expect(redisClient.del).toHaveBeenCalledWith(
+      'change_email_otp:user-id:new@example.com',
+    );
     expect(result).toEqual({
       id: 'user-id',
       email: 'new@example.com',
@@ -161,9 +165,7 @@ describe('PasswordService', () => {
       id: 'user-id',
       email: 'old@example.com',
     });
-    redisClient.get
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce('123456');
+    redisClient.get.mockResolvedValueOnce(null).mockResolvedValueOnce('123456');
     redisClient.incr.mockResolvedValue(1);
     redisClient.expire.mockResolvedValue(1);
 
@@ -174,8 +176,13 @@ describe('PasswordService', () => {
       }),
     ).rejects.toThrow(BadRequestException);
 
-    expect(redisClient.incr).toHaveBeenCalledWith('change_email_otp_attempts:user-id:new@example.com');
-    expect(redisClient.expire).toHaveBeenCalledWith('change_email_otp_attempts:user-id:new@example.com', 300);
+    expect(redisClient.incr).toHaveBeenCalledWith(
+      'change_email_otp_attempts:user-id:new@example.com',
+    );
+    expect(redisClient.expire).toHaveBeenCalledWith(
+      'change_email_otp_attempts:user-id:new@example.com',
+      300,
+    );
     expect(userService.updateUserEmail).not.toHaveBeenCalled();
   });
 });

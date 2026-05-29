@@ -18,9 +18,9 @@ describe('CaslAbilityFactory', () => {
   it('allows workspace owner to update and delete workspace', () => {
     const ability = factory.createForUser(user, {
       workspaceMember: {
-      role: WorkspaceRole.Owner,
+        role: WorkspaceRole.Owner,
       },
-    } as any);
+    });
 
     expect(ability.can(Action.Update, 'Workspace')).toBe(true);
     expect(ability.can(Action.Delete, 'Workspace')).toBe(true);
@@ -29,9 +29,9 @@ describe('CaslAbilityFactory', () => {
   it('allows workspace admin to update but not delete workspace', () => {
     const ability = factory.createForUser(user, {
       workspaceMember: {
-      role: WorkspaceRole.Admin,
+        role: WorkspaceRole.Admin,
       },
-    } as any);
+    });
 
     expect(ability.can(Action.Update, 'Workspace')).toBe(true);
     expect(ability.can(Action.Delete, 'Workspace')).toBe(false);
@@ -40,9 +40,9 @@ describe('CaslAbilityFactory', () => {
   it('allows member to create conversation but denies invite management', () => {
     const ability = factory.createForUser(user, {
       workspaceMember: {
-      role: WorkspaceRole.Member,
+        role: WorkspaceRole.Member,
       },
-    } as any);
+    });
 
     expect(ability.can(Action.Create, 'Workspace')).toBe(true);
     expect(ability.can(Action.Join, 'Conversation')).toBe(true);
@@ -53,9 +53,9 @@ describe('CaslAbilityFactory', () => {
   it('allows guest to read workspace but denies conversation creation', () => {
     const ability = factory.createForUser(user, {
       workspaceMember: {
-      role: WorkspaceRole.Guest,
+        role: WorkspaceRole.Guest,
       },
-    } as any);
+    });
 
     expect(ability.can(Action.Read, 'Workspace')).toBe(true);
     expect(ability.can(Action.Create, 'Workspace')).toBe(false);
@@ -65,9 +65,9 @@ describe('CaslAbilityFactory', () => {
   it('allows conversation admin to update and archive conversation', () => {
     const ability = factory.createForUser(user, {
       conversationMember: {
-      role: ConversationRole.Admin,
+        role: ConversationRole.Admin,
       },
-    } as any);
+    });
 
     expect(ability.can(Action.Update, 'Conversation')).toBe(true);
     expect(ability.can(Action.Archive, 'Conversation')).toBe(true);
@@ -78,9 +78,9 @@ describe('CaslAbilityFactory', () => {
   it('denies conversation member from deleting conversation', () => {
     const ability = factory.createForUser(user, {
       conversationMember: {
-      role: ConversationRole.Member,
+        role: ConversationRole.Member,
       },
-    } as any);
+    });
 
     expect(ability.can(Action.Delete, 'Conversation')).toBe(false);
     expect(ability.can(Action.Leave, 'Conversation')).toBe(true);
@@ -95,7 +95,7 @@ describe('CaslAbilityFactory', () => {
       conversationMember: {
         role: ConversationRole.Member,
       },
-    } as any);
+    });
 
     expect(ability.can(Action.Archive, 'Conversation')).toBe(true);
   });

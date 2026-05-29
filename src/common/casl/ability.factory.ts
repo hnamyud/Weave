@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { AbilityBuilder, createMongoAbility, MongoAbility } from '@casl/ability';
+import {
+  AbilityBuilder,
+  createMongoAbility,
+  MongoAbility,
+} from '@casl/ability';
 import { Action } from '../../shared/enums/action.enum';
 import { UserInterface } from 'src/shared/interfaces/users.interface';
 import { ConversationRole } from '../../shared/enums/conversation-role.enum';
@@ -37,8 +41,10 @@ export class CaslAbilityFactory {
     const isWorkspaceMember = workspaceRole === WorkspaceRole.Member;
     const isWorkspaceGuest = workspaceRole === WorkspaceRole.Guest;
     const isConversationAdmin = conversationRole === ConversationRole.Admin;
-    const isConversationMember = conversationRole === ConversationRole.Member || isConversationAdmin;
-    const canManageWorkspaceScopedResources = isWorkspaceOwner || isWorkspaceAdmin;
+    const isConversationMember =
+      conversationRole === ConversationRole.Member || isConversationAdmin;
+    const canManageWorkspaceScopedResources =
+      isWorkspaceOwner || isWorkspaceAdmin;
 
     if (user) {
       can(Action.Read, 'User');

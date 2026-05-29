@@ -2,9 +2,13 @@ import { BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-jest.mock('prisma/prisma.service', () => ({
-  PrismaService: class PrismaService {},
-}), { virtual: true });
+jest.mock(
+  'prisma/prisma.service',
+  () => ({
+    PrismaService: class PrismaService {},
+  }),
+  { virtual: true },
+);
 
 jest.mock('uuid', () => ({
   v7: () => 'user-id',
@@ -45,12 +49,14 @@ describe('UsersService', () => {
   it('maps register email unique constraint to a bad request without pre-querying user email', async () => {
     prisma.user.create.mockRejectedValue(prismaError('P2002', ['email']));
 
-    await expect(service.registerUser({
-      username: 'tester',
-      email: 'tester@example.com',
-      password: 'password123',
-      displayName: 'Tester',
-    })).rejects.toThrow(BadRequestException);
+    await expect(
+      service.registerUser({
+        username: 'tester',
+        email: 'tester@example.com',
+        password: 'password123',
+        displayName: 'Tester',
+      }),
+    ).rejects.toThrow(BadRequestException);
 
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
@@ -58,29 +64,41 @@ describe('UsersService', () => {
   it('maps register username unique constraint to a bad request', async () => {
     prisma.user.create.mockRejectedValue(prismaError('P2002', ['username']));
 
-    await expect(service.registerUser({
-      username: 'tester',
-      email: 'tester@example.com',
-      password: 'password123',
-      displayName: 'Tester',
-    })).rejects.toThrow('Username: tester is already existed');
+    await expect(
+      service.registerUser({
+        username: 'tester',
+        email: 'tester@example.com',
+        password: 'password123',
+        displayName: 'Tester',
+      }),
+    ).rejects.toThrow('Username: tester is already existed');
   });
 
   it('maps update username unique constraints to bad requests', async () => {
-    prisma.user.update.mockRejectedValueOnce(prismaError('P2002', ['username']));
+    prisma.user.update.mockRejectedValueOnce(
+      prismaError('P2002', ['username']),
+    );
 
-    await expect(service.updateMyProfile({
-      username: 'tester',
-    } as any, 'user-id')).rejects.toThrow('Username: tester is already existed');
+    await expect(
+      service.updateMyProfile(
+        {
+          username: 'tester',
+        } as any,
+        'user-id',
+      ),
+    ).rejects.toThrow('Username: tester is already existed');
   });
 
   it('does not update email through profile updates', async () => {
     prisma.user.update.mockResolvedValue({ id: 'user-id' });
 
-    await service.updateMyProfile({
-      email: 'tester@example.com',
-      displayName: 'Tester',
-    } as any, 'user-id');
+    await service.updateMyProfile(
+      {
+        email: 'tester@example.com',
+        displayName: 'Tester',
+      } as any,
+      'user-id',
+    );
 
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: {
@@ -96,8 +114,13 @@ describe('UsersService', () => {
   it('maps update missing user to a bad request', async () => {
     prisma.user.update.mockRejectedValue(prismaError('P2025'));
 
-    await expect(service.updateMyProfile({
-      username: 'tester',
-    } as any, 'user-id')).rejects.toThrow('User: user-id does not exist');
+    await expect(
+      service.updateMyProfile(
+        {
+          username: 'tester',
+        } as any,
+        'user-id',
+      ),
+    ).rejects.toThrow('User: user-id does not exist');
   });
 });

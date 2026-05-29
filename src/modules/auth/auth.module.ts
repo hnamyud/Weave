@@ -25,17 +25,14 @@ import { PasswordService } from './password.service';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_ACCESS_SECRET'),
-        signOptions: { expiresIn: configService.get<string>('JWT_ACCESS_EXPIRED') as any },
+        signOptions: {
+          expiresIn: configService.get<string>('JWT_ACCESS_EXPIRED') as any,
+        },
       }),
-      inject: [ConfigService]
-    })
+      inject: [ConfigService],
+    }),
   ],
   controllers: [AuthController],
-  providers: [
-    AuthService,
-    PasswordService,
-    JwtStrategy,
-    GoogleStrategy
-  ],
+  providers: [AuthService, PasswordService, JwtStrategy, GoogleStrategy],
 })
 export class AuthModule {}

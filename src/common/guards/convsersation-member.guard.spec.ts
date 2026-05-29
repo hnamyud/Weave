@@ -1,8 +1,12 @@
 import { ForbiddenException } from '@nestjs/common';
 
-jest.mock('prisma/prisma.service', () => ({
-  PrismaService: class PrismaService {},
-}), { virtual: true });
+jest.mock(
+  'prisma/prisma.service',
+  () => ({
+    PrismaService: class PrismaService {},
+  }),
+  { virtual: true },
+);
 
 import { ConversationMemberGuard } from './conversation-member.guard';
 
@@ -13,11 +17,12 @@ describe('ConversationMemberGuard', () => {
     },
   };
 
-  const createContext = (request: any) => ({
-    switchToHttp: () => ({
-      getRequest: () => request,
-    }),
-  }) as any;
+  const createContext = (request: any) =>
+    ({
+      switchToHttp: () => ({
+        getRequest: () => request,
+      }),
+    }) as any;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -83,11 +88,13 @@ describe('ConversationMemberGuard', () => {
 
     await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
 
-    expect(prisma.conversationMember.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        conversationId: 'conversation-id',
+    expect(prisma.conversationMember.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          conversationId: 'conversation-id',
+        }),
       }),
-    }));
+    );
   });
 
   it('rejects when user is not an active conversation member', async () => {
@@ -98,6 +105,8 @@ describe('ConversationMemberGuard', () => {
     };
     prisma.conversationMember.findFirst.mockResolvedValue(null);
 
-    await expect(guard.canActivate(createContext(request))).rejects.toThrow(ForbiddenException);
+    await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 });

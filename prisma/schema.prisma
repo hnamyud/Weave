@@ -23,6 +23,7 @@ model User {
 
   oauthAccounts        OAuthAccount[]
   uploadedAttachments  Attachment[]
+  uploadedFileObjects  FileObject[]
   conversationMembers  ConversationMember[]
   conversationsCreated Conversation[]        @relation("ConversationCreator")
   mentions             Mention[]
@@ -200,20 +201,41 @@ model Message {
   @@map("messages")
 }
 
+model FileObject {
+  id          String   @id @db.Uuid
+  storageKey  String   @unique @map("storage_key")
+  fileHash    String   @map("file_hash")
+  fileName    String   @map("file_name")
+  fileType    String?  @map("file_type")
+  fileSize    Int?     @map("file_size")
+  uploaderId  String   @map("uploader_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  uploader    User         @relation(fields: [uploaderId], references: [id])
+  attachments Attachment[]
+
+  @@unique([fileHash, fileSize])
+  @@index([uploaderId])
+  @@map("file_objects")
+}
+
 model Attachment {
-  id         String   @id @db.Uuid
-  messageId  String   @map("message_id") @db.Uuid
-  uploaderId String   @map("uploader_id") @db.Uuid
-  fileName   String   @map("file_name")
-  fileType   String?  @map("file_type")
-  fileSize   Int?     @map("file_size")
-  storageUrl String   @map("storage_url")
-  metadata   Json?
-  createdAt  DateTime @default(now()) @map("created_at")
-  message    Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  uploader   User     @relation(fields: [uploaderId], references: [id])
+  id           String   @id @db.Uuid
+  messageId    String   @map("message_id") @db.Uuid
+  fileObjectId String   @map("file_object_id") @db.Uuid
+  uploaderId   String   @map("uploader_id") @db.Uuid
+  fileName     String   @map("file_name")
+  isDeleted    Boolean  @default(false) @map("is_deleted")
+  createdAt    DateTime @default(now()) @map("created_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  message      Message    @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  fileObject   FileObject @relation(fields: [fileObjectId], references: [id])
+  uploader     User       @relation(fields: [uploaderId], references: [id])
 
   @@index([messageId])
+  @@index([messageId, isDeleted])
+  @@index([fileObjectId])
   @@map("attachments")
 }
 
@@ -265,7 +287,9 @@ model Notification {
   type           NotificationType
   payload        Json?
   isRead         Boolean          @default(false) @map("is_read")
+  isDeleted      Boolean          @default(false) @map("is_deleted")
   createdAt      DateTime         @default(now()) @map("created_at")
+  deletedAt      DateTime?        @map("deleted_at")
   actor          User?            @relation("NotificationActor", fields: [actorId], references: [id])
   conversation   Conversation?    @relation(fields: [conversationId], references: [id])
   message        Message?         @relation(fields: [messageId], references: [id])
@@ -273,6 +297,7 @@ model Notification {
   workspace      Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead, createdAt(sort: Desc)])
+  @@index([userId, isDeleted, isRead, createdAt(sort: Desc)])
   @@map("notifications")
 }
 

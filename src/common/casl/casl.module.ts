@@ -6,8 +6,12 @@ import { ConversationMemberGuard } from '../guards/conversation-member.guard';
 
 @Global()
 @Module({
-    imports: [PrismaModule],
-    providers: [CaslAbilityFactory, WorkspaceMemberGuard, ConversationMemberGuard],
-    exports: [CaslAbilityFactory, WorkspaceMemberGuard, ConversationMemberGuard]
+  imports: [PrismaModule],
+  providers: [
+    CaslAbilityFactory,
+    WorkspaceMemberGuard,
+    ConversationMemberGuard,
+  ],
+  exports: [CaslAbilityFactory, WorkspaceMemberGuard, ConversationMemberGuard],
 })
-export class CaslModule { }
+export class CaslModule {}

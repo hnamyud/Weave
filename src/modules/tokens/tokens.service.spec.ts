@@ -1,9 +1,13 @@
 import { BadRequestException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-jest.mock('prisma/prisma.service', () => ({
-  PrismaService: class PrismaService {},
-}), { virtual: true });
+jest.mock(
+  'prisma/prisma.service',
+  () => ({
+    PrismaService: class PrismaService {},
+  }),
+  { virtual: true },
+);
 
 jest.mock('uuid', () => ({
   v7: () => 'new-token-id',
@@ -21,7 +25,8 @@ describe('TokensService', () => {
       deleteMany: jest.fn<(args: any) => Promise<any>>(),
       create: jest.fn<(args: any) => Promise<any>>(),
     },
-    $transaction: jest.fn<(callback: (tx: any) => Promise<any>) => Promise<any>>(),
+    $transaction:
+      jest.fn<(callback: (tx: any) => Promise<any>) => Promise<any>>(),
   };
 
   const jwtService = {
@@ -47,7 +52,11 @@ describe('TokensService', () => {
       };
       return values[key];
     });
-    service = new TokensService(prisma as any, jwtService as any, configService as any);
+    service = new TokensService(
+      prisma as any,
+      jwtService as any,
+      configService as any,
+    );
     service.onModuleInit();
   });
 
@@ -114,7 +123,9 @@ describe('TokensService', () => {
       userId: 'another-user-id',
     });
 
-    await expect(service.processToken('refresh-token')).rejects.toThrow(BadRequestException);
+    await expect(service.processToken('refresh-token')).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('deletes expired or revoked refresh token records', async () => {

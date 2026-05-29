@@ -1,21 +1,29 @@
 import { BadRequestException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-jest.mock('prisma/prisma.service', () => ({
-  PrismaService: class PrismaService {},
-}), { virtual: true });
+jest.mock(
+  'prisma/prisma.service',
+  () => ({
+    PrismaService: class PrismaService {},
+  }),
+  { virtual: true },
+);
 
 jest.mock('uuid', () => ({
   v7: () => 'conversation-member-id',
 }));
 
-jest.mock('src/shared/enums/conversation-role.enum', () => ({
-  ConversationRole: {
-    Admin: 'ADMIN',
-    Member: 'MEMBER',
-    Guest: 'GUEST',
-  },
-}), { virtual: true });
+jest.mock(
+  'src/shared/enums/conversation-role.enum',
+  () => ({
+    ConversationRole: {
+      Admin: 'ADMIN',
+      Member: 'MEMBER',
+      Guest: 'GUEST',
+    },
+  }),
+  { virtual: true },
+);
 
 import { ConversationMembersService } from './conversation_members.service';
 
@@ -39,7 +47,9 @@ describe('ConversationMembersService', () => {
   });
 
   it('lists conversation members with pagination when requester belongs to the conversation', async () => {
-    prisma.conversationMember.findFirst.mockResolvedValue({ id: 'requester-member-id' });
+    prisma.conversationMember.findFirst.mockResolvedValue({
+      id: 'requester-member-id',
+    });
     prisma.conversationMember.count.mockResolvedValue(1);
     prisma.conversationMember.findMany.mockResolvedValue([
       {
@@ -75,12 +85,14 @@ describe('ConversationMembersService', () => {
       },
     });
     expect(prisma.conversationMember.count).toHaveBeenCalledWith({ where });
-    expect(prisma.conversationMember.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where,
-      skip: 0,
-      take: 10,
-      orderBy: { joinedAt: 'asc' },
-    }));
+    expect(prisma.conversationMember.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where,
+        skip: 0,
+        take: 10,
+        orderBy: { joinedAt: 'asc' },
+      }),
+    );
     expect(result).toEqual({
       meta: {
         current: 1,
@@ -106,23 +118,17 @@ describe('ConversationMembersService', () => {
   });
 
   it('rejects invalid pagination values', async () => {
-    await expect(service.getConversationMembers(
-      0,
-      10,
-      'conversation-id',
-      'requester-id',
-    )).rejects.toThrow(BadRequestException);
+    await expect(
+      service.getConversationMembers(0, 10, 'conversation-id', 'requester-id'),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('rejects listing members when requester is not in the conversation', async () => {
     prisma.conversationMember.findFirst.mockResolvedValue(null);
 
-    await expect(service.getConversationMembers(
-      1,
-      10,
-      'conversation-id',
-      'requester-id',
-    )).rejects.toThrow(BadRequestException);
+    await expect(
+      service.getConversationMembers(1, 10, 'conversation-id', 'requester-id'),
+    ).rejects.toThrow(BadRequestException);
     expect(prisma.conversationMember.count).not.toHaveBeenCalled();
     expect(prisma.conversationMember.findMany).not.toHaveBeenCalled();
   });

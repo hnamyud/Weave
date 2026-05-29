@@ -1,9 +1,13 @@
 import { BadRequestException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-jest.mock('prisma/prisma.service', () => ({
-  PrismaService: class PrismaService {},
-}), { virtual: true });
+jest.mock(
+  'prisma/prisma.service',
+  () => ({
+    PrismaService: class PrismaService {},
+  }),
+  { virtual: true },
+);
 
 jest.mock('uuid', () => ({
   v7: () => 'invite-id',
@@ -13,7 +17,8 @@ import { WorkspaceInviteService } from './workspace_invite.service';
 
 describe('WorkspaceInviteService', () => {
   const prisma = {
-    $transaction: jest.fn<(callback: (tx: any) => Promise<any>) => Promise<any>>(),
+    $transaction:
+      jest.fn<(callback: (tx: any) => Promise<any>) => Promise<any>>(),
     workspaceMember: {
       findFirst: jest.fn<(args: any) => Promise<any>>(),
       create: jest.fn<(args: any) => Promise<any>>(),
@@ -54,10 +59,13 @@ describe('WorkspaceInviteService', () => {
     prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'member-id' });
     prisma.workspaceInvite.create.mockResolvedValue({ id: 'invite-id' });
 
-    const inviteUrl = await service.createInviteLink({
-      workspaceId: 'workspace-id',
-      expiresAt: new Date('2026-06-01T00:00:00.000Z'),
-    }, 'creator-id');
+    const inviteUrl = await service.createInviteLink(
+      {
+        workspaceId: 'workspace-id',
+        expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+      },
+      'creator-id',
+    );
 
     const rawToken = inviteUrl.replace('https://app.test/invite/', '');
 
@@ -78,20 +86,30 @@ describe('WorkspaceInviteService', () => {
   it('rejects invite links when the creator is not a workspace member', async () => {
     prisma.workspaceMember.findFirst.mockResolvedValue(null);
 
-    await expect(service.createInviteLink({
-      workspaceId: 'workspace-id',
-      expiresAt: new Date('2026-06-01T00:00:00.000Z'),
-    }, 'creator-id')).rejects.toThrow(BadRequestException);
+    await expect(
+      service.createInviteLink(
+        {
+          workspaceId: 'workspace-id',
+          expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+        },
+        'creator-id',
+      ),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('rejects direct invite creation when invite expiry config is invalid', async () => {
     prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'member-id' });
     configService.get.mockReturnValue(undefined);
 
-    await expect(service.createDirectInvite({
-      workspaceId: 'workspace-id',
-      invitedEmail: 'invited@example.com',
-    }, 'creator-id')).rejects.toThrow(BadRequestException);
+    await expect(
+      service.createDirectInvite(
+        {
+          workspaceId: 'workspace-id',
+          invitedEmail: 'invited@example.com',
+        },
+        'creator-id',
+      ),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('rejects direct invites for emails that already belong to workspace members', async () => {
@@ -99,10 +117,15 @@ describe('WorkspaceInviteService', () => {
       .mockResolvedValueOnce({ id: 'creator-member-id' })
       .mockResolvedValueOnce({ id: 'invited-member-id' });
 
-    await expect(service.createDirectInvite({
-      workspaceId: 'workspace-id',
-      invitedEmail: 'invited@example.com',
-    }, 'creator-id')).rejects.toThrow(BadRequestException);
+    await expect(
+      service.createDirectInvite(
+        {
+          workspaceId: 'workspace-id',
+          invitedEmail: 'invited@example.com',
+        },
+        'creator-id',
+      ),
+    ).rejects.toThrow(BadRequestException);
 
     expect(prisma.workspaceInvite.create).not.toHaveBeenCalled();
   });
@@ -111,12 +134,19 @@ describe('WorkspaceInviteService', () => {
     prisma.workspaceMember.findFirst
       .mockResolvedValueOnce({ id: 'creator-member-id' })
       .mockResolvedValueOnce(null);
-    prisma.workspaceInvite.findFirst.mockResolvedValue({ id: 'existing-invite-id' });
+    prisma.workspaceInvite.findFirst.mockResolvedValue({
+      id: 'existing-invite-id',
+    });
 
-    await expect(service.createDirectInvite({
-      workspaceId: 'workspace-id',
-      invitedEmail: 'invited@example.com',
-    }, 'creator-id')).rejects.toThrow(BadRequestException);
+    await expect(
+      service.createDirectInvite(
+        {
+          workspaceId: 'workspace-id',
+          invitedEmail: 'invited@example.com',
+        },
+        'creator-id',
+      ),
+    ).rejects.toThrow(BadRequestException);
 
     expect(prisma.workspaceInvite.findFirst).toHaveBeenCalledWith({
       where: expect.objectContaining({
@@ -136,10 +166,15 @@ describe('WorkspaceInviteService', () => {
     prisma.workspaceInvite.findFirst.mockResolvedValue(null);
     prisma.workspaceInvite.create.mockRejectedValue({ code: 'P2003' });
 
-    await expect(service.createDirectInvite({
-      workspaceId: 'workspace-id',
-      invitedEmail: 'invited@example.com',
-    }, 'creator-id')).rejects.toThrow(BadRequestException);
+    await expect(
+      service.createDirectInvite(
+        {
+          workspaceId: 'workspace-id',
+          invitedEmail: 'invited@example.com',
+        },
+        'creator-id',
+      ),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('creates direct invites with invited email, raw token, and returns an invite URL', async () => {
@@ -149,10 +184,13 @@ describe('WorkspaceInviteService', () => {
     prisma.workspaceInvite.findFirst.mockResolvedValue(null);
     prisma.workspaceInvite.create.mockResolvedValue({ id: 'direct-invite-id' });
 
-    const inviteUrl = await service.createDirectInvite({
-      workspaceId: 'workspace-id',
-      invitedEmail: 'Invited@Example.COM',
-    }, 'creator-id');
+    const inviteUrl = await service.createDirectInvite(
+      {
+        workspaceId: 'workspace-id',
+        invitedEmail: 'Invited@Example.COM',
+      },
+      'creator-id',
+    );
     const rawToken = inviteUrl.replace('https://app.test/invite/', '');
 
     expect(rawToken).toHaveLength(22);
@@ -167,13 +205,20 @@ describe('WorkspaceInviteService', () => {
   });
 
   it('maps link invite Prisma create errors to BadRequestException', async () => {
-    prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'creator-member-id' });
+    prisma.workspaceMember.findFirst.mockResolvedValue({
+      id: 'creator-member-id',
+    });
     prisma.workspaceInvite.create.mockRejectedValue({ code: 'P2003' });
 
-    await expect(service.createInviteLink({
-      workspaceId: 'workspace-id',
-      expiresAt: new Date('2026-06-01T00:00:00.000Z'),
-    }, 'creator-id')).rejects.toThrow(BadRequestException);
+    await expect(
+      service.createInviteLink(
+        {
+          workspaceId: 'workspace-id',
+          expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+        },
+        'creator-id',
+      ),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('accepts direct invites atomically using the invite workspace id', async () => {
@@ -186,15 +231,20 @@ describe('WorkspaceInviteService', () => {
       expiresAt: new Date('2026-06-01T00:00:00.000Z'),
       revokedAt: null,
     });
-    prisma.workspaceInviteResponse.create.mockResolvedValue({ id: 'response-id' });
+    prisma.workspaceInviteResponse.create.mockResolvedValue({
+      id: 'response-id',
+    });
     prisma.workspaceMember.create.mockResolvedValue({ id: 'member-id' });
 
-    await service.acceptDirectInvite({
-      token: 'direct-token',
-    }, {
-      id: 'current-user-id',
-      email: 'current@example.com',
-    });
+    await service.acceptDirectInvite(
+      {
+        token: 'direct-token',
+      },
+      {
+        id: 'current-user-id',
+        email: 'current@example.com',
+      },
+    );
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(prisma.workspaceInviteResponse.create).toHaveBeenCalledWith({
@@ -223,13 +273,17 @@ describe('WorkspaceInviteService', () => {
       revokedAt: new Date('2026-05-01T00:00:00.000Z'),
     });
 
-    await expect(service.acceptDirectInvite({
-      token: 'direct-token',
-    }, {
-      id: 'current-user-id',
-      email: 'current@example.com',
-    }))
-      .rejects.toThrow(BadRequestException);
+    await expect(
+      service.acceptDirectInvite(
+        {
+          token: 'direct-token',
+        },
+        {
+          id: 'current-user-id',
+          email: 'current@example.com',
+        },
+      ),
+    ).rejects.toThrow(BadRequestException);
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
@@ -243,13 +297,17 @@ describe('WorkspaceInviteService', () => {
       revokedAt: null,
     });
 
-    await expect(service.denyInvite({
-      token: 'link-token',
-    }, {
-      id: 'current-user-id',
-      email: 'current@example.com',
-    }))
-      .rejects.toThrow(BadRequestException);
+    await expect(
+      service.denyInvite(
+        {
+          token: 'link-token',
+        },
+        {
+          id: 'current-user-id',
+          email: 'current@example.com',
+        },
+      ),
+    ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceInviteResponse.create).not.toHaveBeenCalled();
   });
 
@@ -263,12 +321,17 @@ describe('WorkspaceInviteService', () => {
       expiresAt: new Date('2026-06-01T00:00:00.000Z'),
       revokedAt: null,
     });
-    prisma.workspaceInviteResponse.create.mockResolvedValue({ id: 'response-id' });
+    prisma.workspaceInviteResponse.create.mockResolvedValue({
+      id: 'response-id',
+    });
     prisma.workspaceMember.create.mockResolvedValue({ id: 'member-id' });
 
-    await service.acceptLinkInvite({
-      token,
-    }, 'current-user-id');
+    await service.acceptLinkInvite(
+      {
+        token,
+      },
+      'current-user-id',
+    );
 
     expect(prisma.workspaceInvite.findFirst).toHaveBeenCalledWith({
       where: {
@@ -298,7 +361,10 @@ describe('WorkspaceInviteService', () => {
       revokedAt: new Date('2026-05-21T00:00:00.000Z'),
     });
 
-    const result = await service.revokeInvite('invite-id-to-revoke', 'requester-id');
+    const result = await service.revokeInvite(
+      'invite-id-to-revoke',
+      'requester-id',
+    );
 
     expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith({
       where: {
@@ -327,8 +393,9 @@ describe('WorkspaceInviteService', () => {
   it('rejects revoke when invite does not exist', async () => {
     prisma.workspaceInvite.findUnique.mockResolvedValue(null);
 
-    await expect(service.revokeInvite('missing-invite-id', 'requester-id'))
-      .rejects.toThrow(BadRequestException);
+    await expect(
+      service.revokeInvite('missing-invite-id', 'requester-id'),
+    ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceInvite.update).not.toHaveBeenCalled();
   });
 
@@ -340,8 +407,9 @@ describe('WorkspaceInviteService', () => {
     });
     prisma.workspaceMember.findFirst.mockResolvedValue(null);
 
-    await expect(service.revokeInvite('invite-id-to-revoke', 'requester-id'))
-      .rejects.toThrow(BadRequestException);
+    await expect(
+      service.revokeInvite('invite-id-to-revoke', 'requester-id'),
+    ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceInvite.update).not.toHaveBeenCalled();
   });
 
@@ -352,8 +420,9 @@ describe('WorkspaceInviteService', () => {
       revokedAt: new Date('2026-05-20T00:00:00.000Z'),
     });
 
-    await expect(service.revokeInvite('invite-id-to-revoke', 'requester-id'))
-      .rejects.toThrow(BadRequestException);
+    await expect(
+      service.revokeInvite('invite-id-to-revoke', 'requester-id'),
+    ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceInvite.update).not.toHaveBeenCalled();
   });
 
@@ -367,10 +436,13 @@ describe('WorkspaceInviteService', () => {
       revokedAt: null,
     });
 
-    const inviteUrl = await service.createInviteLink({
-      workspaceId: 'workspace-id',
-      expiresAt: new Date('2026-06-10T00:00:00.000Z'),
-    }, 'creator-id');
+    const inviteUrl = await service.createInviteLink(
+      {
+        workspaceId: 'workspace-id',
+        expiresAt: new Date('2026-06-10T00:00:00.000Z'),
+      },
+      'creator-id',
+    );
 
     expect(prisma.workspaceInvite.findFirst).toHaveBeenCalledWith({
       where: {
@@ -401,10 +473,13 @@ describe('WorkspaceInviteService', () => {
     });
     prisma.workspaceInvite.create.mockResolvedValue({ id: 'new-link-id' });
 
-    await service.createInviteLink({
-      workspaceId: 'workspace-id',
-      expiresAt: new Date('2026-06-10T00:00:00.000Z'),
-    }, 'creator-id');
+    await service.createInviteLink(
+      {
+        workspaceId: 'workspace-id',
+        expiresAt: new Date('2026-06-10T00:00:00.000Z'),
+      },
+      'creator-id',
+    );
 
     expect(prisma.workspaceInvite.update).toHaveBeenCalledWith({
       where: {
@@ -416,7 +491,6 @@ describe('WorkspaceInviteService', () => {
     });
     expect(prisma.workspaceInvite.create).toHaveBeenCalled();
   });
-
 
   it('lists active direct workspace invites with pagination', async () => {
     prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'member-id' });
@@ -467,12 +541,14 @@ describe('WorkspaceInviteService', () => {
     expect(prisma.workspaceInvite.count).toHaveBeenCalledWith({
       where: expectedWhere,
     });
-    expect(prisma.workspaceInvite.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expectedWhere,
-      skip: 0,
-      take: 10,
-      orderBy: { createdAt: 'desc' },
-    }));
+    expect(prisma.workspaceInvite.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expectedWhere,
+        skip: 0,
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+      }),
+    );
     expect(result).toEqual({
       meta: {
         current: 1,
@@ -522,20 +598,22 @@ describe('WorkspaceInviteService', () => {
       status: 'ACTIVE',
     });
 
-    expect(prisma.workspaceInvite.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      select: expect.objectContaining({
-        _count: {
-          select: {
-            responses: {
-              where: {
-                status: 'ACCEPTED',
+    expect(prisma.workspaceInvite.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          _count: {
+            select: {
+              responses: {
+                where: {
+                  status: 'ACCEPTED',
+                },
               },
             },
           },
-        },
-        rawToken: true,
+          rawToken: true,
+        }),
       }),
-    }));
+    );
     expect(result.result).toEqual([
       {
         id: 'link-invite-id',
@@ -552,14 +630,16 @@ describe('WorkspaceInviteService', () => {
   });
 
   it('rejects invalid invite list filters', async () => {
-    await expect(service.getWorkspaceInvites({
-      currentPage: 1,
-      limit: 10,
-      workspaceId: 'workspace-id',
-      requesterId: 'requester-id',
-      type: 'INVALID',
-      status: 'ACTIVE',
-    })).rejects.toThrow(BadRequestException);
+    await expect(
+      service.getWorkspaceInvites({
+        currentPage: 1,
+        limit: 10,
+        workspaceId: 'workspace-id',
+        requesterId: 'requester-id',
+        type: 'INVALID',
+        status: 'ACTIVE',
+      }),
+    ).rejects.toThrow(BadRequestException);
 
     expect(prisma.workspaceInvite.findMany).not.toHaveBeenCalled();
   });

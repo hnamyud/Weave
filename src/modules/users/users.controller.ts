@@ -1,6 +1,9 @@
 import { Controller, Get, Patch, Delete, Param, Body } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { GetUser, ResponseMessage } from '../../common/decorators/customize.decorator';
+import {
+  GetUser,
+  ResponseMessage,
+} from '../../common/decorators/customize.decorator';
 import { UserInterface } from '../../shared/interfaces/users.interface';
 import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -15,9 +18,7 @@ export class UsersController {
   @RequireUserPermission(Action.Read)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Get my profile successfully!')
-  async getMyProfile(
-    @GetUser() user: UserInterface,
-  ) {
+  async getMyProfile(@GetUser() user: UserInterface) {
     return this.usersService.getMyProfile(user.id);
   }
 
@@ -25,9 +26,7 @@ export class UsersController {
   @RequireUserPermission(Action.Read)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Get user profile successfully!')
-  async getUserProfile(
-    @Param('id') userId: string,
-  ) {
+  async getUserProfile(@Param('id') userId: string) {
     return this.usersService.getUserProfile(userId);
   }
 
@@ -47,9 +46,7 @@ export class UsersController {
   @RequireUserPermission(Action.Delete)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Delete account successfully!')
-  async deleteMyAccount(
-    @GetUser() user: UserInterface,
-  ) {
+  async deleteMyAccount(@GetUser() user: UserInterface) {
     return this.usersService.softDeleteUser(user.id);
   }
 }

@@ -4,11 +4,9 @@ import { WorkspaceController } from './workspace.controller';
 import { PrismaModule } from 'prisma/prisma.module';
 
 @Module({
-  imports: [
-    PrismaModule,
-  ],
+  imports: [PrismaModule],
   controllers: [WorkspaceController],
   providers: [WorkspaceService],
-  exports: [WorkspaceService]
+  exports: [WorkspaceService],
 })
 export class WorkspaceModule {}

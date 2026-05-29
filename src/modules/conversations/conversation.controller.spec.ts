@@ -1,25 +1,37 @@
-jest.mock('prisma/prisma.service', () => ({
-  PrismaService: class PrismaService {},
-}), { virtual: true });
+jest.mock(
+  'prisma/prisma.service',
+  () => ({
+    PrismaService: class PrismaService {},
+  }),
+  { virtual: true },
+);
 
 jest.mock('uuid', () => ({
   v7: () => 'conversation-id',
 }));
 
-jest.mock('src/shared/enums/conversation-role.enum', () => ({
-  ConversationRole: {
-    Admin: 'ADMIN',
-    Member: 'MEMBER',
-  },
-}), { virtual: true });
+jest.mock(
+  'src/shared/enums/conversation-role.enum',
+  () => ({
+    ConversationRole: {
+      Admin: 'ADMIN',
+      Member: 'MEMBER',
+    },
+  }),
+  { virtual: true },
+);
 
-jest.mock('src/shared/enums/conversation-type.enum', () => ({
-  ConversationType: {
-    Channel: 'CHANNEL',
-    Dm: 'DM',
-    GroupDm: 'GROUP_DM',
-  },
-}), { virtual: true });
+jest.mock(
+  'src/shared/enums/conversation-type.enum',
+  () => ({
+    ConversationType: {
+      Channel: 'CHANNEL',
+      Dm: 'DM',
+      GroupDm: 'GROUP_DM',
+    },
+  }),
+  { virtual: true },
+);
 
 import { Action } from '../../shared/enums/action.enum';
 import { CHECK_POLICIES_KEY } from '../../common/decorators/policy.decorator';
@@ -38,7 +50,10 @@ describe('ConversationController metadata', () => {
   };
 
   it('uses workspace-based create policy for POST conversation', () => {
-    const metadata = Reflect.getMetadata(CHECK_POLICIES_KEY, ConversationController.prototype.createConversation);
+    const metadata = Reflect.getMetadata(
+      CHECK_POLICIES_KEY,
+      ConversationController.prototype.createConversation,
+    );
 
     expect(metadata).toHaveLength(1);
     expect(metadata[0].message).toBeDefined();
@@ -46,16 +61,28 @@ describe('ConversationController metadata', () => {
   });
 
   it('uses archive policy for archive and unarchive routes', () => {
-    const archiveMetadata = Reflect.getMetadata(CHECK_POLICIES_KEY, ConversationController.prototype.archiveConversation);
-    const unarchiveMetadata = Reflect.getMetadata(CHECK_POLICIES_KEY, ConversationController.prototype.unarchiveConversation);
+    const archiveMetadata = Reflect.getMetadata(
+      CHECK_POLICIES_KEY,
+      ConversationController.prototype.archiveConversation,
+    );
+    const unarchiveMetadata = Reflect.getMetadata(
+      CHECK_POLICIES_KEY,
+      ConversationController.prototype.unarchiveConversation,
+    );
 
     expect(archiveMetadata[0].action).toBe(Action.Archive);
     expect(unarchiveMetadata[0].action).toBe(Action.Archive);
   });
 
   it('uses add and kick policies for private channel member routes', () => {
-    const addMetadata = Reflect.getMetadata(CHECK_POLICIES_KEY, ConversationController.prototype.addMemberToPrivateChannel);
-    const removeMetadata = Reflect.getMetadata(CHECK_POLICIES_KEY, ConversationController.prototype.removeMemberFromPrivateChannel);
+    const addMetadata = Reflect.getMetadata(
+      CHECK_POLICIES_KEY,
+      ConversationController.prototype.addMemberToPrivateChannel,
+    );
+    const removeMetadata = Reflect.getMetadata(
+      CHECK_POLICIES_KEY,
+      ConversationController.prototype.removeMemberFromPrivateChannel,
+    );
 
     expect(addMetadata[0].action).toBe(Action.Add);
     expect(removeMetadata[0].action).toBe(Action.Kick);
@@ -63,7 +90,10 @@ describe('ConversationController metadata', () => {
 
   it('passes create dto and authenticated user id to the service', async () => {
     const controller = new ConversationController(service as any);
-    await controller.createConversation({ workspaceId: 'workspace-id', type: 'CHANNEL' } as any, { id: 'user-id' } as any);
+    await controller.createConversation(
+      { workspaceId: 'workspace-id', type: 'CHANNEL' } as any,
+      { id: 'user-id' } as any,
+    );
 
     expect(service.createConversation).toHaveBeenCalledWith(
       { workspaceId: 'workspace-id', type: 'CHANNEL' },
@@ -74,7 +104,9 @@ describe('ConversationController metadata', () => {
   it('passes private channel add member input to the service', async () => {
     const controller = new ConversationController(service as any);
 
-    await controller.addMemberToPrivateChannel('conversation-id', { userId: 'target-user-id' });
+    await controller.addMemberToPrivateChannel('conversation-id', {
+      userId: 'target-user-id',
+    });
 
     expect(service.addMemberToPrivateChannel).toHaveBeenCalledWith(
       'conversation-id',
@@ -85,7 +117,10 @@ describe('ConversationController metadata', () => {
   it('passes private channel remove member input to the service', async () => {
     const controller = new ConversationController(service as any);
 
-    await controller.removeMemberFromPrivateChannel('conversation-id', 'target-user-id');
+    await controller.removeMemberFromPrivateChannel(
+      'conversation-id',
+      'target-user-id',
+    );
 
     expect(service.removeMemberFromPrivateChannel).toHaveBeenCalledWith(
       'conversation-id',
