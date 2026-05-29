@@ -16,6 +16,17 @@ import { IS_PUBLIC_KEY } from '../../common/decorators/customize.decorator';
 import { CHECK_POLICIES_KEY } from '../../common/decorators/policy.decorator';
 import { Action } from '../../shared/enums/action.enum';
 import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+import { PasswordService } from './password.service';
+
+function getMethodMetadata(metadataKey: string, methodName: string): unknown {
+  const descriptor = Object.getOwnPropertyDescriptor(
+    AuthController.prototype,
+    methodName,
+  );
+
+  return Reflect.getMetadata(metadataKey, descriptor?.value as object);
+}
 
 describe('AuthController password routes', () => {
   const authService = {
@@ -29,42 +40,36 @@ describe('AuthController password routes', () => {
   };
   const passwordService = {
     verifyOtp: jest.fn<(email: string, otp: string) => Promise<boolean>>(),
-    resetPassword: jest.fn<(dto: any) => Promise<void>>(),
-    changePassword: jest.fn<(userId: string, dto: any) => Promise<any>>(),
-    changeEmail: jest.fn<(userId: string, dto: any) => Promise<any>>(),
+    resetPassword: jest.fn<(dto: unknown) => Promise<void>>(),
+    changePassword:
+      jest.fn<(userId: string, dto: unknown) => Promise<unknown>>(),
+    changeEmail: jest.fn<(userId: string, dto: unknown) => Promise<unknown>>(),
   };
   const configService = {};
 
   function createController() {
     jest.clearAllMocks();
     return new AuthController(
-      authService as any,
-      passwordService as any,
-      configService as any,
+      authService as unknown as AuthService,
+      passwordService as unknown as PasswordService,
+      configService as never,
     );
   }
 
   it('marks verify OTP and reset password routes as public', () => {
-    expect(
-      Reflect.getMetadata(IS_PUBLIC_KEY, AuthController.prototype.verifyOtp),
-    ).toBe(true);
-    expect(
-      Reflect.getMetadata(
-        IS_PUBLIC_KEY,
-        AuthController.prototype.resetPassword,
-      ),
-    ).toBe(true);
+    expect(getMethodMetadata(IS_PUBLIC_KEY, 'verifyOtp')).toBe(true);
+    expect(getMethodMetadata(IS_PUBLIC_KEY, 'resetPassword')).toBe(true);
   });
 
   it('uses user update policy for authenticated password and email changes', () => {
-    const changePasswordPolicy = Reflect.getMetadata(
+    const changePasswordPolicy = getMethodMetadata(
       CHECK_POLICIES_KEY,
-      AuthController.prototype.changePassword,
-    );
-    const changeEmailPolicy = Reflect.getMetadata(
+      'changePassword',
+    ) as Array<{ action: Action }>;
+    const changeEmailPolicy = getMethodMetadata(
       CHECK_POLICIES_KEY,
-      AuthController.prototype.changeEmail,
-    );
+      'changeEmail',
+    ) as Array<{ action: Action }>;
 
     expect(changePasswordPolicy).toHaveLength(1);
     expect(changePasswordPolicy[0].action).toBe(Action.Update);
@@ -115,7 +120,7 @@ describe('AuthController password routes', () => {
     });
 
     const result = await controller.changePassword(
-      { id: 'user-id' } as any,
+      { id: 'user-id', email: 'user@example.com' },
       dto,
     );
 
@@ -137,7 +142,10 @@ describe('AuthController password routes', () => {
       email: 'new@example.com',
     });
 
-    const result = await controller.changeEmail({ id: 'user-id' } as any, dto);
+    const result = await controller.changeEmail(
+      { id: 'user-id', email: 'user@example.com' },
+      dto,
+    );
 
     expect(passwordService.changeEmail).toHaveBeenCalledWith('user-id', dto);
     expect(result).toEqual({

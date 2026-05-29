@@ -5,14 +5,23 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { randomBytes } from 'crypto';
+import { Request, Response } from 'express';
 
 const GOOGLE_OAUTH_STATE_COOKIE = 'google_oauth_state';
+
+type GoogleAuthRequest = Omit<Request, 'cookies' | 'query'> & {
+  cookies?: Record<string, string | undefined>;
+  googleOAuthState?: string;
+  query: {
+    state?: unknown;
+  };
+};
 
 @Injectable()
 export class GoogleAuthGuard extends AuthGuard('google') {
   canActivate(context: ExecutionContext) {
-    const request = context.switchToHttp().getRequest();
-    const response = context.switchToHttp().getResponse();
+    const request = context.switchToHttp().getRequest<GoogleAuthRequest>();
+    const response = context.switchToHttp().getResponse<Response>();
 
     if (request.path.endsWith('/google/login')) {
       request.googleOAuthState = randomBytes(32).toString('hex');
@@ -49,7 +58,7 @@ export class GoogleAuthGuard extends AuthGuard('google') {
   }
 
   getAuthenticateOptions(context: ExecutionContext) {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<GoogleAuthRequest>();
 
     return {
       session: false,

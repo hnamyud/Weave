@@ -12,6 +12,7 @@ import { UsersModule } from '../users/users.module';
 import { TokensModule } from '../tokens/tokens.module';
 import { RedisModule } from 'src/common/cache/redis.module';
 import { PasswordService } from './password.service';
+import { StringValue } from 'ms';
 
 @Module({
   imports: [
@@ -26,7 +27,9 @@ import { PasswordService } from './password.service';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_ACCESS_SECRET'),
         signOptions: {
-          expiresIn: configService.get<string>('JWT_ACCESS_EXPIRED') as any,
+          expiresIn: configService.get<string>(
+            'JWT_ACCESS_EXPIRED',
+          ) as StringValue,
         },
       }),
       inject: [ConfigService],

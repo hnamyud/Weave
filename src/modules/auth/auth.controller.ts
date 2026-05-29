@@ -28,6 +28,14 @@ import { ChangeEmailDto } from './dto/change-email.dto';
 import { RequireUserPermission } from '../../common/decorators/policy.decorator';
 import { Action } from '../../shared/enums/action.enum';
 
+type CookieRequest = Omit<Request, 'cookies'> & {
+  cookies: Record<string, string | undefined>;
+};
+
+type GoogleCallbackRequest = CookieRequest & {
+  user: UserInterface;
+};
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -73,7 +81,7 @@ export class AuthController {
   @ApiBearerAuth('access-token')
   @ResponseMessage('Đăng xuất thành công!')
   handleLogout(
-    @Req() req: Request,
+    @Req() req: CookieRequest,
     @Res({ passthrough: true }) response: Response,
   ) {
     const refreshToken = req.cookies?.['refresh_token'];
@@ -85,7 +93,7 @@ export class AuthController {
   @ResponseMessage('Đăng xuất các thiết bị khác thành công!')
   handleLogoutOtherDevices(
     @GetUser() user: UserInterface,
-    @Req() req: Request,
+    @Req() req: CookieRequest,
   ) {
     const refreshToken = req.cookies?.['refresh_token'];
     return this.authService.logoutOtherDevices(user.id, refreshToken);
@@ -151,10 +159,14 @@ export class AuthController {
   @Public()
   @ResponseMessage('Làm mới token thành công!')
   async refreshToken(
-    @Req() req: Request,
+    @Req() req: CookieRequest,
     @Res({ passthrough: true }) response: Response,
   ) {
     const refreshToken = req.cookies['refresh_token'];
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
+
     return this.authService.processToken(refreshToken, response);
   }
 
@@ -171,7 +183,7 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   @ResponseMessage('Google callback')
   async handleGoogleCallback(
-    @Req() req: Request & { user: any },
+    @Req() req: GoogleCallbackRequest,
     @Res({ passthrough: true }) res: Response,
   ) {
     const loginResult = await this.authService.login(req.user, req, res);

@@ -10,7 +10,14 @@ import { IS_PUBLIC_KEY } from '../decorators/customize.decorator';
 import {
   CHECK_POLICIES_KEY,
   PolicyHandler,
+  PolicyHandlerCallback,
+  PolicyRequest,
 } from '../decorators/policy.decorator';
+import { UserInterface } from 'src/shared/interfaces/users.interface';
+
+type PolicyGuardRequest = PolicyRequest & {
+  user: UserInterface;
+};
 
 @Injectable()
 export class PoliciesGuard implements CanActivate {
@@ -40,28 +47,37 @@ export class PoliciesGuard implements CanActivate {
       return Promise.resolve(true);
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<PolicyGuardRequest>();
     const user = request.user;
 
     // Tạo ability cho user đang gọi API
-    const ability = this.caslAbilityFactory.createForUser(user, request);
+    const ability = this.caslAbilityFactory.createForUser(
+      user,
+      request as Parameters<CaslAbilityFactory['createForUser']>[1],
+    );
 
     // Kiểm tra tất cả các handler được khai báo trong decorator
     for (const handler of policyHandlers) {
       let isAllowed = false;
       let message = 'Bạn không có quyền thực hiện hành động này!';
-      if (typeof handler === 'function') {
-        isAllowed = (handler as any)(ability, request);
+      if (this.isPolicyHandlerCallback(handler)) {
+        isAllowed = handler(ability, request);
       } else {
         isAllowed = handler.handle(ability, request);
         message = handler.message || message;
       }
 
       if (!isAllowed) {
-        throw new ForbiddenException(message);
+        return Promise.reject(new ForbiddenException(message));
       }
     }
 
     return Promise.resolve(true);
+  }
+
+  private isPolicyHandlerCallback(
+    handler: PolicyHandler,
+  ): handler is PolicyHandlerCallback {
+    return typeof handler === 'function';
   }
 }

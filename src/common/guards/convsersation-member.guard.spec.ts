@@ -1,4 +1,5 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { PrismaService } from 'prisma/prisma.service';
 
 jest.mock(
   'prisma/prisma.service',
@@ -10,27 +11,40 @@ jest.mock(
 
 import { ConversationMemberGuard } from './conversation-member.guard';
 
+function objectContaining<T extends object>(value: T): T {
+  const matcher: unknown = expect.objectContaining(value);
+  return matcher as T;
+}
+
 describe('ConversationMemberGuard', () => {
   const prisma = {
     conversationMember: {
-      findFirst: jest.fn<(args: any) => Promise<any>>(),
+      findFirst: jest.fn<(args: unknown) => Promise<unknown>>(),
     },
   };
 
-  const createContext = (request: any) =>
+  const createContext = (request: unknown): ExecutionContext =>
     ({
       switchToHttp: () => ({
-        getRequest: () => request,
+        getRequest: <TRequest>() => request as TRequest,
       }),
-    }) as any;
+    }) as ExecutionContext;
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   it('attaches active conversation member context from conversationId', async () => {
-    const guard = new ConversationMemberGuard(prisma as any);
-    const request = {
+    const guard = new ConversationMemberGuard(
+      prisma as unknown as PrismaService,
+    );
+    const request: {
+      user: { id: string };
+      params: { conversationId: string };
+      conversationMember?: unknown;
+      conversation?: unknown;
+      workspaceId?: string;
+    } = {
       user: { id: 'user-id' },
       params: { conversationId: 'conversation-id' },
     };
@@ -75,7 +89,9 @@ describe('ConversationMemberGuard', () => {
   });
 
   it('supports conversation id from generic id route param', async () => {
-    const guard = new ConversationMemberGuard(prisma as any);
+    const guard = new ConversationMemberGuard(
+      prisma as unknown as PrismaService,
+    );
     const request = {
       user: { id: 'user-id' },
       params: { id: 'conversation-id' },
@@ -89,8 +105,8 @@ describe('ConversationMemberGuard', () => {
     await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
 
     expect(prisma.conversationMember.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
+      objectContaining({
+        where: objectContaining({
           conversationId: 'conversation-id',
         }),
       }),
@@ -98,7 +114,9 @@ describe('ConversationMemberGuard', () => {
   });
 
   it('rejects when user is not an active conversation member', async () => {
-    const guard = new ConversationMemberGuard(prisma as any);
+    const guard = new ConversationMemberGuard(
+      prisma as unknown as PrismaService,
+    );
     const request = {
       user: { id: 'user-id' },
       params: { conversationId: 'conversation-id' },

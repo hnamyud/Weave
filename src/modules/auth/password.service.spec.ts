@@ -1,11 +1,13 @@
 import { BadRequestException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { Redis } from 'ioredis';
 
 jest.mock('../users/users.service', () => ({
   UsersService: class UsersService {},
 }));
 
 import { PasswordService } from './password.service';
+import { UsersService } from '../users/users.service';
 
 describe('PasswordService', () => {
   const redisClient = {
@@ -16,19 +18,23 @@ describe('PasswordService', () => {
   };
 
   const userService = {
-    findOneById: jest.fn<(id: string) => Promise<any>>(),
+    findOneById: jest.fn<(id: string) => Promise<unknown>>(),
     isValidPassword:
       jest.fn<(password: string, hash: string) => Promise<boolean>>(),
     updateUserPasswordById:
       jest.fn<(id: string, newPassword: string) => Promise<void>>(),
-    updateUserEmail: jest.fn<(id: string, newEmail: string) => Promise<any>>(),
+    updateUserEmail:
+      jest.fn<(id: string, newEmail: string) => Promise<unknown>>(),
   };
 
   let service: PasswordService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new PasswordService(userService as any, redisClient as any);
+    service = new PasswordService(
+      userService as unknown as UsersService,
+      redisClient as unknown as Redis,
+    );
   });
 
   it('changes password after validating confirmation, old password, and password reuse', async () => {

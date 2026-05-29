@@ -26,15 +26,17 @@ export class AuthService {
     // @Inject('REDIS_CLIENT') private redisClient: Redis
   ) {}
 
-  async validateUser(email: string, pass: string): Promise<any> {
+  async validateUser(
+    email: string,
+    pass: string,
+  ): Promise<UserInterface | null> {
     const user = await this.userService.findOneByEmail(email);
     if (!user || !user.password) return null;
 
     const isValid = await this.userService.isValidPassword(pass, user.password);
     if (!isValid) return null;
 
-    const { password, ...safeUser } = user;
-    return safeUser;
+    return this.toSafeUser(user);
   }
 
   async processToken(refreshToken: string, response: Response) {
@@ -124,7 +126,7 @@ export class AuthService {
         loggedOut: true,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException('Logout failed!');
     }
   }
@@ -157,7 +159,7 @@ export class AuthService {
     email: string;
     name: string;
     providerId: string;
-  }): Promise<any> {
+  }): Promise<UserInterface> {
     const { email, name, providerId } = googleUser;
 
     const oauthAccount = await this.prisma.oAuthAccount.findUnique({
@@ -175,8 +177,7 @@ export class AuthService {
 
     if (oauthAccount) {
       this.ensureActiveOAuthUser(oauthAccount.user);
-      const { password, ...safeUser } = oauthAccount.user;
-      return safeUser;
+      return this.toSafeUser(oauthAccount.user);
     }
 
     const existingUser = await this.userService.findOneByEmail(email);
@@ -192,8 +193,7 @@ export class AuthService {
         },
       });
 
-      const { password, ...safeUser } = existingUser;
-      return safeUser;
+      return this.toSafeUser(existingUser);
     }
 
     // User mới hoàn toàn
@@ -202,9 +202,18 @@ export class AuthService {
       name,
       providerId,
     });
-    const { password, ...safeUser } = newGoogleUser;
+    return this.toSafeUser(newGoogleUser);
+  }
 
-    return safeUser;
+  private toSafeUser(
+    user: Pick<User, 'displayName' | 'email' | 'id' | 'username'>,
+  ): UserInterface {
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      displayName: user.displayName,
+    };
   }
 
   private ensureActiveOAuthUser(user: User) {

@@ -4,14 +4,32 @@ import {
   ExecutionContext,
   ForbiddenException,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { PrismaService } from 'prisma/prisma.service';
+import { UserInterface } from 'src/shared/interfaces/users.interface';
+
+type WorkspaceMemberRequest = Omit<Request, 'body' | 'params'> & {
+  user: UserInterface;
+  workspaceMember?: unknown;
+  workspace?: unknown;
+  workspaceId?: string;
+  params: {
+    conversationId?: string;
+    id?: string;
+    inviteId?: string;
+    workspaceId?: string;
+  };
+  body?: {
+    workspaceId?: unknown;
+  };
+};
 
 @Injectable()
 export class WorkspaceMemberGuard implements CanActivate {
   constructor(private prisma: PrismaService) {}
 
   async canActivate(context: ExecutionContext) {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<WorkspaceMemberRequest>();
 
     const userId = request.user.id;
     const workspaceId = await this.resolveWorkspaceId(request);
@@ -45,10 +63,7 @@ export class WorkspaceMemberGuard implements CanActivate {
     return true;
   }
 
-  private async resolveWorkspaceId(request: {
-    params?: Record<string, string>;
-    body?: Record<string, unknown>;
-  }) {
+  private async resolveWorkspaceId(request: WorkspaceMemberRequest) {
     const directWorkspaceId =
       request.params?.workspaceId ??
       request.params?.id ??

@@ -1,25 +1,30 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { CHECK_POLICIES_KEY } from '../decorators/policy.decorator';
+import {
+  CHECK_POLICIES_KEY,
+  PolicyHandler,
+} from '../decorators/policy.decorator';
 import { PoliciesGuard } from './policy.guard';
 
 describe('PoliciesGuard', () => {
   const reflector = {
-    getAllAndOverride: jest.fn<(key: string, targets: any[]) => boolean>(),
-    get: jest.fn<(key: string, target: any) => any>(),
+    getAllAndOverride: jest.fn<(key: string, targets: unknown[]) => boolean>(),
+    get: jest.fn<
+      (key: string, target: unknown) => PolicyHandler[] | undefined
+    >(),
   };
   const caslAbilityFactory = {
-    createForUser: jest.fn<(user: any) => any>(),
+    createForUser: jest.fn<(user: unknown) => unknown>(),
   };
 
-  const createContext = (request: any) =>
+  const createContext = (request: unknown): ExecutionContext =>
     ({
       getHandler: () => 'handler',
       getClass: () => 'class',
       switchToHttp: () => ({
-        getRequest: () => request,
+        getRequest: <TRequest>() => request as TRequest,
       }),
-    }) as any;
+    }) as ExecutionContext;
 
   beforeEach(() => {
     jest.clearAllMocks();

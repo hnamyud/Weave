@@ -1,4 +1,5 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { PrismaService } from 'prisma/prisma.service';
 
 jest.mock(
   'prisma/prisma.service',
@@ -10,33 +11,45 @@ jest.mock(
 
 import { WorkspaceMemberGuard } from './workspace-member.guard';
 
+function objectContaining<T extends object>(value: T): T {
+  const matcher: unknown = expect.objectContaining(value);
+  return matcher as T;
+}
+
 describe('WorkspaceMemberGuard', () => {
   const prisma = {
     workspaceMember: {
-      findFirst: jest.fn<(args: any) => Promise<any>>(),
+      findFirst: jest.fn<(args: unknown) => Promise<unknown>>(),
     },
     workspaceInvite: {
-      findUnique: jest.fn<(args: any) => Promise<any>>(),
+      findUnique: jest.fn<(args: unknown) => Promise<unknown>>(),
     },
     conversation: {
-      findFirst: jest.fn<(args: any) => Promise<any>>(),
+      findFirst: jest.fn<(args: unknown) => Promise<unknown>>(),
     },
   };
 
-  const createContext = (request: any) =>
+  const createContext = (request: unknown): ExecutionContext =>
     ({
       switchToHttp: () => ({
-        getRequest: () => request,
+        getRequest: <TRequest>() => request as TRequest,
       }),
-    }) as any;
+    }) as ExecutionContext;
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   it('attaches active workspace member context from workspaceId route param', async () => {
-    const guard = new WorkspaceMemberGuard(prisma as any);
-    const request = {
+    const guard = new WorkspaceMemberGuard(prisma as unknown as PrismaService);
+    const request: {
+      user: { id: string };
+      params: { workspaceId: string };
+      body: Record<string, unknown>;
+      workspaceMember?: unknown;
+      workspace?: unknown;
+      workspaceId?: string;
+    } = {
       user: { id: 'user-id' },
       params: { workspaceId: 'workspace-id' },
       body: {},
@@ -73,7 +86,7 @@ describe('WorkspaceMemberGuard', () => {
   });
 
   it('resolves workspaceId from request body for create conversation', async () => {
-    const guard = new WorkspaceMemberGuard(prisma as any);
+    const guard = new WorkspaceMemberGuard(prisma as unknown as PrismaService);
     const request = {
       user: { id: 'user-id' },
       params: {},
@@ -87,8 +100,8 @@ describe('WorkspaceMemberGuard', () => {
     await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
 
     expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
+      objectContaining({
+        where: objectContaining({
           workspaceId: 'workspace-id',
         }),
       }),
@@ -96,7 +109,7 @@ describe('WorkspaceMemberGuard', () => {
   });
 
   it('resolves workspaceId from inviteId for revoke invite routes', async () => {
-    const guard = new WorkspaceMemberGuard(prisma as any);
+    const guard = new WorkspaceMemberGuard(prisma as unknown as PrismaService);
     const request = {
       user: { id: 'user-id' },
       params: { inviteId: 'invite-id' },
@@ -121,8 +134,8 @@ describe('WorkspaceMemberGuard', () => {
       },
     });
     expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
+      objectContaining({
+        where: objectContaining({
           workspaceId: 'workspace-id',
         }),
       }),
@@ -130,7 +143,7 @@ describe('WorkspaceMemberGuard', () => {
   });
 
   it('resolves workspaceId from conversationId for public conversation join routes', async () => {
-    const guard = new WorkspaceMemberGuard(prisma as any);
+    const guard = new WorkspaceMemberGuard(prisma as unknown as PrismaService);
     const request = {
       user: { id: 'user-id' },
       params: { conversationId: 'conversation-id' },
@@ -156,8 +169,8 @@ describe('WorkspaceMemberGuard', () => {
       },
     });
     expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
+      objectContaining({
+        where: objectContaining({
           workspaceId: 'workspace-id',
         }),
       }),
@@ -165,7 +178,7 @@ describe('WorkspaceMemberGuard', () => {
   });
 
   it('rejects when user is not an active workspace member', async () => {
-    const guard = new WorkspaceMemberGuard(prisma as any);
+    const guard = new WorkspaceMemberGuard(prisma as unknown as PrismaService);
     const request = {
       user: { id: 'user-id' },
       params: { workspaceId: 'workspace-id' },
