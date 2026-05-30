@@ -3,13 +3,19 @@ import {
   ExecutionContext,
   SetMetadata,
 } from '@nestjs/common';
+import { Request } from 'express';
+import { UserInterface } from 'src/shared/interfaces/users.interface';
 
 export const IS_PUBLIC_KEY = 'isPublic';
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 
 export const GetUser = createParamDecorator(
   (data: unknown, ctx: ExecutionContext) => {
-    const request = ctx.switchToHttp().getRequest();
+    const request = ctx.switchToHttp().getRequest<
+      Request & {
+        user?: UserInterface;
+      }
+    >();
     return request.user;
   },
 );
