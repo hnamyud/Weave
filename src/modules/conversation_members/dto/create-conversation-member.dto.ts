@@ -1,6 +1,5 @@
-import { ConversationType } from 'src/shared/enums/conversation-type.enum';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsUUID } from 'class-validator';
 
 export class CreateConversationMemberDto {
   @IsUUID()

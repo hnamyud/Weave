@@ -4,12 +4,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import {
+  ConversationRole as PrismaConversationRole,
+  Prisma,
+  WorkspaceRole as PrismaWorkspaceRole,
+} from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 import { v7 as uuidv7 } from 'uuid';
 import { parsePositiveInteger } from '../../common/utils/parse-interger.utils';
-import { ConversationRole } from '../../shared/enums/conversation-role.enum';
-import { WorkspaceRole } from '../../shared/enums/workspace-role.enum';
 import { FileMetadataDto } from '../files/dto/file-metadata.dto';
 import { FileService } from '../files/file.service';
 import { CreateMessageDto } from './dto/create-message.dto';
@@ -28,6 +30,190 @@ type MessageWriteInput = {
   content?: string;
   attachments?: FileMetadataDto[];
 };
+
+type MessageSenderResponse = {
+  id: string;
+  username: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+};
+
+type MessageParentResponse = {
+  id: string;
+  senderId: string | null;
+  content: string | null;
+  createdAt: Date;
+};
+
+type MessageAttachmentResponse = {
+  id: string;
+  fileName: string;
+  storageKey: string;
+  fileHash: string;
+  fileType: string | null;
+  fileSize: number | null;
+};
+
+type MessageResponse = {
+  id: string;
+  conversationId: string;
+  senderId: string | null;
+  parentId: string | null;
+  content: string | null;
+  isEdited: boolean;
+  editedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  sender: MessageSenderResponse | null;
+  parent: MessageParentResponse | null;
+  attachments: MessageAttachmentResponse[];
+  replyCount: number;
+};
+
+type MessageCursorResponse = {
+  result: MessageResponse[];
+  nextCursor: string | null;
+};
+
+const baseMessageInclude = {
+  sender: {
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      avatarUrl: true,
+    },
+  },
+  attachments: {
+    where: {
+      isDeleted: false,
+    },
+    include: {
+      fileObject: {
+        select: {
+          storageKey: true,
+          fileHash: true,
+          fileType: true,
+          fileSize: true,
+        },
+      },
+    },
+  },
+  _count: {
+    select: {
+      replies: {
+        where: {
+          isDeleted: false,
+        },
+      },
+    },
+  },
+} satisfies Prisma.MessageInclude;
+
+function buildMessageWithPermissionInclude(userId: string) {
+  return {
+    ...baseMessageInclude,
+    parent: {
+      select: {
+        id: true,
+        senderId: true,
+        content: true,
+        createdAt: true,
+      },
+    },
+    conversation: {
+      select: {
+        members: {
+          where: {
+            userId,
+            leftAt: null,
+          },
+          select: {
+            role: true,
+          },
+        },
+        workspace: {
+          select: {
+            members: {
+              where: {
+                userId,
+                leftAt: null,
+              },
+              select: {
+                role: true,
+              },
+            },
+          },
+        },
+      },
+    },
+  } satisfies Prisma.MessageInclude;
+}
+
+const conversationMembershipSelect = {
+  role: true,
+  conversation: {
+    select: {
+      id: true,
+      workspaceId: true,
+      isArchived: true,
+    },
+  },
+} satisfies Prisma.ConversationMemberSelect;
+
+function buildAttachmentPermissionSelect(userId: string) {
+  return {
+    id: true,
+    uploaderId: true,
+    message: {
+      select: {
+        senderId: true,
+        conversation: {
+          select: {
+            members: {
+              where: {
+                userId,
+                leftAt: null,
+              },
+              select: {
+                role: true,
+              },
+            },
+            workspace: {
+              select: {
+                members: {
+                  where: {
+                    userId,
+                    leftAt: null,
+                  },
+                  select: {
+                    role: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  } satisfies Prisma.AttachmentSelect;
+}
+
+type MessageRecord = Prisma.MessageGetPayload<{
+  include: typeof baseMessageInclude;
+}>;
+
+type MessageWithPermissionContext = Prisma.MessageGetPayload<{
+  include: ReturnType<typeof buildMessageWithPermissionInclude>;
+}>;
+
+type ConversationMembership = Prisma.ConversationMemberGetPayload<{
+  select: typeof conversationMembershipSelect;
+}>;
+
+type AttachmentPermissionRecord = Prisma.AttachmentGetPayload<{
+  select: ReturnType<typeof buildAttachmentPermissionSelect>;
+}>;
 
 @Injectable()
 export class MessageService {
@@ -51,7 +237,7 @@ export class MessageService {
     conversationId: string,
     userId: string,
     query: MessageCursorQueryDto,
-  ) {
+  ): Promise<MessageCursorResponse> {
     await this.ensureConversationMemberByConversationId(conversationId, userId);
 
     const limit = this.getCursorPageLimit(query.limit);
@@ -65,13 +251,16 @@ export class MessageService {
       },
       take: limit,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      include: this.buildMessageInclude(),
+      include: baseMessageInclude,
     });
 
     return this.buildCursorResponse(messages, limit);
   }
 
-  async getMessageById(messageId: string, userId: string) {
+  async getMessageById(
+    messageId: string,
+    userId: string,
+  ): Promise<MessageResponse> {
     const message = await this.ensureReadableMessage(messageId, userId);
     return this.mapMessageResponse(message);
   }
@@ -80,7 +269,7 @@ export class MessageService {
     messageId: string,
     dto: UpdateMessageDto,
     userId: string,
-  ) {
+  ): Promise<MessageResponse> {
     const message = await this.ensureWritableMessage(messageId, userId);
     const content = dto.content.trim();
 
@@ -101,7 +290,7 @@ export class MessageService {
         isEdited: true,
         editedAt: new Date(),
       },
-      include: this.buildMessageInclude(),
+      include: baseMessageInclude,
     });
 
     return this.mapMessageResponse(updatedMessage);
@@ -113,9 +302,9 @@ export class MessageService {
     const workspaceRole = message.conversation.workspace.members[0]?.role;
     const canDelete =
       message.senderId === userId ||
-      conversationRole === ConversationRole.Admin ||
-      workspaceRole === WorkspaceRole.Admin ||
-      workspaceRole === WorkspaceRole.Owner;
+      conversationRole === PrismaConversationRole.ADMIN ||
+      workspaceRole === PrismaWorkspaceRole.ADMIN ||
+      workspaceRole === PrismaWorkspaceRole.OWNER;
 
     if (!canDelete) {
       throw new ForbiddenException(
@@ -134,7 +323,11 @@ export class MessageService {
     });
   }
 
-  async createReply(messageId: string, dto: CreateReplyDto, userId: string) {
+  async createReply(
+    messageId: string,
+    dto: CreateReplyDto,
+    userId: string,
+  ): Promise<MessageResponse> {
     const parentMessage = await this.ensureReadableMessage(messageId, userId);
 
     if (parentMessage.parentId) {
@@ -156,7 +349,7 @@ export class MessageService {
     messageId: string,
     userId: string,
     query: MessageCursorQueryDto,
-  ) {
+  ): Promise<MessageCursorResponse> {
     await this.ensureReadableMessage(messageId, userId);
 
     const limit = this.getCursorPageLimit(query.limit);
@@ -169,22 +362,30 @@ export class MessageService {
       },
       take: limit,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      include: this.buildMessageInclude(),
+      include: baseMessageInclude,
     });
 
     return this.buildCursorResponse(replies, limit);
   }
 
   async deleteAttachment(attachmentId: string, userId: string) {
-    const attachment = await this.prisma.attachment.findFirst({
-      where: {
-        id: attachmentId,
-        isDeleted: false,
-        message: {
-          conversation: {
-            isDeleted: false,
-            workspace: {
+    const attachment: AttachmentPermissionRecord | null =
+      await this.prisma.attachment.findFirst({
+        where: {
+          id: attachmentId,
+          isDeleted: false,
+          message: {
+            conversation: {
               isDeleted: false,
+              workspace: {
+                isDeleted: false,
+                members: {
+                  some: {
+                    userId,
+                    leftAt: null,
+                  },
+                },
+              },
               members: {
                 some: {
                   userId,
@@ -192,51 +393,10 @@ export class MessageService {
                 },
               },
             },
-            members: {
-              some: {
-                userId,
-                leftAt: null,
-              },
-            },
           },
         },
-      },
-      select: {
-        id: true,
-        uploaderId: true,
-        message: {
-          select: {
-            senderId: true,
-            conversation: {
-              select: {
-                members: {
-                  where: {
-                    userId,
-                    leftAt: null,
-                  },
-                  select: {
-                    role: true,
-                  },
-                },
-                workspace: {
-                  select: {
-                    members: {
-                      where: {
-                        userId,
-                        leftAt: null,
-                      },
-                      select: {
-                        role: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
+        select: buildAttachmentPermissionSelect(userId),
+      });
 
     if (!attachment) {
       throw new NotFoundException('Attachment not found');
@@ -248,9 +408,9 @@ export class MessageService {
     const canDelete =
       attachment.uploaderId === userId ||
       attachment.message.senderId === userId ||
-      conversationRole === ConversationRole.Admin ||
-      workspaceRole === WorkspaceRole.Admin ||
-      workspaceRole === WorkspaceRole.Owner;
+      conversationRole === PrismaConversationRole.ADMIN ||
+      workspaceRole === PrismaWorkspaceRole.ADMIN ||
+      workspaceRole === PrismaWorkspaceRole.OWNER;
 
     if (!canDelete) {
       throw new ForbiddenException(
@@ -272,7 +432,7 @@ export class MessageService {
   private async createMessageInConversation(
     input: MessageWriteInput,
     userId: string,
-  ) {
+  ): Promise<MessageResponse> {
     const membership = await this.ensureConversationMemberByConversationId(
       input.conversationId,
       userId,
@@ -293,7 +453,7 @@ export class MessageService {
     }
 
     const messageId = uuidv7();
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const fileObjects: Array<{ id: string }> = [];
 
       for (const attachment of attachments) {
@@ -325,7 +485,7 @@ export class MessageService {
           parentId: input.parentId,
           content: trimmedContent ?? null,
         },
-        include: this.buildMessageInclude(),
+        include: baseMessageInclude,
       });
 
       if (attachments.length > 0) {
@@ -345,7 +505,7 @@ export class MessageService {
           id: messageId,
           isDeleted: false,
         },
-        include: this.buildMessageInclude(),
+        include: baseMessageInclude,
       });
 
       if (!createdMessage) {
@@ -359,7 +519,7 @@ export class MessageService {
   private async ensureConversationMemberByConversationId(
     conversationId: string,
     userId: string,
-  ): Promise<any> {
+  ): Promise<ConversationMembership> {
     const membership = await this.prisma.conversationMember.findFirst({
       where: {
         conversationId,
@@ -378,16 +538,7 @@ export class MessageService {
           },
         },
       },
-      select: {
-        role: true,
-        conversation: {
-          select: {
-            id: true,
-            workspaceId: true,
-            isArchived: true,
-          },
-        },
-      },
+      select: conversationMembershipSelect,
     });
 
     if (!membership) {
@@ -402,7 +553,7 @@ export class MessageService {
   private async ensureReadableMessage(
     messageId: string,
     userId: string,
-  ): Promise<any> {
+  ): Promise<MessageWithPermissionContext> {
     const message = await this.prisma.message.findFirst({
       where: {
         id: messageId,
@@ -426,7 +577,7 @@ export class MessageService {
           },
         },
       },
-      include: this.buildMessageInclude(true, userId),
+      include: buildMessageWithPermissionInclude(userId),
     });
 
     if (!message) {
@@ -439,90 +590,23 @@ export class MessageService {
   private async ensureWritableMessage(
     messageId: string,
     userId: string,
-  ): Promise<any> {
+  ): Promise<MessageWithPermissionContext> {
     return this.ensureReadableMessage(messageId, userId);
   }
 
-  private buildMessageInclude(
-    includePermissionContext = false,
-    userId?: string,
-  ) {
-    const include: any = {
-      sender: {
-        select: {
-          id: true,
-          username: true,
-          displayName: true,
-          avatarUrl: true,
-        },
-      },
-      attachments: {
-        where: {
-          isDeleted: false,
-        },
-        include: {
-          fileObject: {
-            select: {
-              storageKey: true,
-              fileHash: true,
-              fileType: true,
-              fileSize: true,
-            },
-          },
-        },
-      },
-      _count: {
-        select: {
-          replies: {
-            where: {
-              isDeleted: false,
-            },
-          },
-        },
-      },
-    };
+  private mapMessageResponse(
+    message: MessageRecord | MessageWithPermissionContext,
+  ): MessageResponse {
+    const parent =
+      'parent' in message && message.parent
+        ? {
+            id: message.parent.id,
+            senderId: message.parent.senderId,
+            content: message.parent.content,
+            createdAt: message.parent.createdAt,
+          }
+        : null;
 
-    if (includePermissionContext && userId) {
-      include.parent = {
-        select: {
-          id: true,
-          senderId: true,
-          content: true,
-          createdAt: true,
-        },
-      };
-      include.conversation = {
-        select: {
-          members: {
-            where: {
-              userId,
-              leftAt: null,
-            },
-            select: {
-              role: true,
-            },
-          },
-          workspace: {
-            select: {
-              members: {
-                where: {
-                  userId,
-                  leftAt: null,
-                },
-                select: {
-                  role: true,
-                },
-              },
-            },
-          },
-        },
-      };
-    }
-
-    return include;
-  }
-
-  private mapMessageResponse(message: any) {
     return {
       id: message.id,
       conversationId: message.conversationId,
@@ -534,15 +618,8 @@ export class MessageService {
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
       sender: message.sender,
-      parent: message.parent
-        ? {
-            id: message.parent.id,
-            senderId: message.parent.senderId,
-            content: message.parent.content,
-            createdAt: message.parent.createdAt,
-          }
-        : null,
-      attachments: (message.attachments ?? []).map((attachment: any) => ({
+      parent,
+      attachments: message.attachments.map((attachment) => ({
         id: attachment.id,
         fileName: attachment.fileName,
         storageKey: attachment.fileObject.storageKey,
@@ -550,7 +627,7 @@ export class MessageService {
         fileType: attachment.fileObject.fileType,
         fileSize: attachment.fileObject.fileSize,
       })),
-      replyCount: message._count?.replies ?? 0,
+      replyCount: message._count.replies,
     };
   }
 
@@ -617,7 +694,10 @@ export class MessageService {
     };
   }
 
-  private buildCursorResponse(messages: any[], limit: number) {
+  private buildCursorResponse(
+    messages: MessageRecord[],
+    limit: number,
+  ): MessageCursorResponse {
     const result = messages.map((message) => this.mapMessageResponse(message));
     const nextCursor =
       messages.length === limit

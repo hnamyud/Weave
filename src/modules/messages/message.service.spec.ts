@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 jest.mock(
@@ -19,6 +15,9 @@ jest.mock('uuid', () => ({
   v7: mockUuid,
 }));
 
+import { PrismaService } from '../../../prisma/prisma.service';
+import { FileMetadataDto } from '../files/dto/file-metadata.dto';
+import { FileService } from '../files/file.service';
 import { MessageService } from './message.service';
 
 describe('MessageService', () => {
@@ -42,9 +41,16 @@ describe('MessageService', () => {
   };
 
   const fileService = {
-    validateMessageAttachments: jest.fn<(attachments: any[]) => void>(),
+    validateMessageAttachments:
+      jest.fn<(attachments: FileMetadataDto[]) => void>(),
     getExpectedStorageKey: jest.fn<(hash: string) => string>(),
-    ensureFileObject: jest.fn<(args: any, tx: any) => Promise<any>>(),
+    ensureFileObject:
+      jest.fn<
+        (
+          args: { metadata: FileMetadataDto; uploaderId: string },
+          tx: PrismaService,
+        ) => Promise<{ id: string }>
+      >(),
   };
 
   let service: MessageService;
@@ -114,7 +120,10 @@ describe('MessageService', () => {
     fileService.getExpectedStorageKey.mockImplementation(
       (hash) => `files/sha256/${hash.slice(0, 2)}/${hash}`,
     );
-    service = new MessageService(prisma as any, fileService as any);
+    service = new MessageService(
+      prisma as unknown as PrismaService,
+      fileService as unknown as FileService,
+    );
   });
 
   it('rejects creating a message for a non-member user', async () => {
