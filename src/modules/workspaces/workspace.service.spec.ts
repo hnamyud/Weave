@@ -14,6 +14,7 @@ jest.mock('uuid', () => ({
 }));
 
 import { WorkspaceService } from './workspace.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 describe('WorkspaceService', () => {
   const prisma = {
@@ -37,7 +38,7 @@ describe('WorkspaceService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prisma.$transaction.mockImplementation((callback) => callback(prisma));
-    service = new WorkspaceService(prisma as any);
+    service = new WorkspaceService(prisma as unknown as PrismaService);
   });
 
   it('creates workspace and owner membership in one transaction', async () => {

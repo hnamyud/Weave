@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 jest.mock(
@@ -14,6 +15,7 @@ jest.mock('uuid', () => ({
 }));
 
 import { WorkspaceInviteService } from './workspace_invite.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 describe('WorkspaceInviteService', () => {
   const prisma = {
@@ -52,7 +54,10 @@ describe('WorkspaceInviteService', () => {
       };
       return values[key];
     });
-    service = new WorkspaceInviteService(prisma as any, configService as any);
+    service = new WorkspaceInviteService(
+      prisma as unknown as PrismaService,
+      configService as unknown as ConfigService,
+    );
   });
 
   it('creates invite links with a stored raw token and returns the invite URL', async () => {

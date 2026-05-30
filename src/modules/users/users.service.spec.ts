@@ -21,6 +21,8 @@ jest.mock('bcryptjs', () => ({
 }));
 
 import { UsersService } from './users.service';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 function prismaError(code: string, target?: string[]) {
   return new Prisma.PrismaClientKnownRequestError('Prisma error', {
@@ -43,7 +45,7 @@ describe('UsersService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new UsersService(prisma as any);
+    service = new UsersService(prisma as unknown as PrismaService);
   });
 
   it('maps register email unique constraint to a bad request without pre-querying user email', async () => {
@@ -83,7 +85,7 @@ describe('UsersService', () => {
       service.updateMyProfile(
         {
           username: 'tester',
-        } as any,
+        } as UpdateUserDto,
         'user-id',
       ),
     ).rejects.toThrow('Username: tester is already existed');
@@ -96,7 +98,7 @@ describe('UsersService', () => {
       {
         email: 'tester@example.com',
         displayName: 'Tester',
-      } as any,
+      } as UpdateUserDto & { email: string },
       'user-id',
     );
 
@@ -118,7 +120,7 @@ describe('UsersService', () => {
       service.updateMyProfile(
         {
           username: 'tester',
-        } as any,
+        } as UpdateUserDto,
         'user-id',
       ),
     ).rejects.toThrow('User: user-id does not exist');

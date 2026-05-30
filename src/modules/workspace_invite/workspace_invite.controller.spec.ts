@@ -13,25 +13,55 @@ jest.mock('uuid', () => ({
 }));
 
 import { WorkspaceInviteController } from './workspace_invite.controller';
+import {
+  DirectInviteResponseDto,
+  LinkInviteResponseDto,
+} from './dto/invite-response.dto';
+import { CreateDirectInviteDto, CreateInviteLinkDto } from './dto/invite.dto';
+import { WorkspaceInviteService } from './workspace_invite.service';
+import { UserInterface } from '../../shared/interfaces/users.interface';
 
 describe('WorkspaceInviteController', () => {
   const workspaceInviteService = {
     createDirectInvite:
-      jest.fn<(dto: any, createdById: string) => Promise<any>>(),
+      jest.fn<
+        (dto: CreateDirectInviteDto, createdById: string) => Promise<unknown>
+      >(),
     createInviteLink:
-      jest.fn<(dto: any, createdById: string) => Promise<any>>(),
-    acceptDirectInvite: jest.fn<(dto: any, currentUser: any) => Promise<any>>(),
+      jest.fn<
+        (dto: CreateInviteLinkDto, createdById: string) => Promise<unknown>
+      >(),
+    acceptDirectInvite:
+      jest.fn<
+        (
+          dto: DirectInviteResponseDto,
+          currentUser: UserInterface,
+        ) => Promise<unknown>
+      >(),
     acceptLinkInvite:
-      jest.fn<(dto: any, currentUserId: string) => Promise<any>>(),
-    denyInvite: jest.fn<(dto: any, currentUser: any) => Promise<any>>(),
+      jest.fn<
+        (dto: LinkInviteResponseDto, currentUserId: string) => Promise<unknown>
+      >(),
+    denyInvite:
+      jest.fn<
+        (
+          dto: DirectInviteResponseDto,
+          currentUser: UserInterface,
+        ) => Promise<unknown>
+      >(),
     revokeInvite:
-      jest.fn<(inviteId: string, currentUserId: string) => Promise<any>>(),
+      jest.fn<(inviteId: string, currentUserId: string) => Promise<unknown>>(),
   };
 
   const controller = new WorkspaceInviteController(
-    workspaceInviteService as any,
+    workspaceInviteService as unknown as WorkspaceInviteService,
   );
-  const user = { id: 'current-user-id', email: 'current@example.com' } as any;
+  const user: UserInterface = {
+    id: 'current-user-id',
+    email: 'current@example.com',
+    username: null,
+    displayName: null,
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();

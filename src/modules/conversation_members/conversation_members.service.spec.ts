@@ -26,6 +26,7 @@ jest.mock(
 );
 
 import { ConversationMembersService } from './conversation_members.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 describe('ConversationMembersService', () => {
   const prisma = {
@@ -43,7 +44,9 @@ describe('ConversationMembersService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new ConversationMembersService(prisma as any);
+    service = new ConversationMembersService(
+      prisma as unknown as PrismaService,
+    );
   });
 
   it('lists conversation members with pagination when requester belongs to the conversation', async () => {

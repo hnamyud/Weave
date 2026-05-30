@@ -4,6 +4,7 @@ import {
   Param,
   Patch,
   Delete,
+  ParseEnumPipe,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -17,6 +18,7 @@ import { UserInterface } from 'src/shared/interfaces/users.interface';
 import { WorkspaceMemberGuard } from '../../common/guards/workspace-member.guard';
 import { RequireWorkspacePermission } from '../../common/decorators/policy.decorator';
 import { Action } from '../../shared/enums/action.enum';
+import { WorkspaceRole } from '@prisma/client';
 
 @Controller('workspace-members')
 export class WorkspaceMembersController {
@@ -49,12 +51,12 @@ export class WorkspaceMembersController {
   async grantRole(
     @Param('workspaceId') workspaceId: string,
     @Param('userId') userId: string,
-    @Query('role') role: string,
+    @Query('role', new ParseEnumPipe(WorkspaceRole)) role: WorkspaceRole,
   ) {
     return this.workspaceMembersService.grantWorkspaceRole(
       workspaceId,
       userId,
-      role as any,
+      role,
     );
   }
 

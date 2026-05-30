@@ -2,11 +2,10 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { v7 as uuidv7 } from 'uuid';
 import { CreateDirectInviteDto, CreateInviteLinkDto } from './dto/invite.dto';
-import { WorkspaceRole } from '@prisma/client';
-import { WorkspaceInviteType } from '../../shared/enums/invite-type.enum';
+import { WorkspaceInviteType, WorkspaceRole } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'crypto';
-import { WorkspaceInviteResponseStatus } from '../../shared/enums/invite-response-status.enum';
+import { WorkspaceInviteResponseStatus } from '@prisma/client';
 import {
   DirectInviteResponseDto,
   LinkInviteResponseDto,
@@ -47,7 +46,7 @@ export class WorkspaceInviteService {
         data: {
           id: uuidv7(),
           workspaceId: dto.workspaceId,
-          type: WorkspaceInviteType.Direct,
+          type: WorkspaceInviteType.DIRECT,
           invitedEmail,
           rawToken,
           role: WorkspaceRole.MEMBER,
@@ -83,7 +82,7 @@ export class WorkspaceInviteService {
         data: {
           id: uuidv7(),
           workspaceId: dto.workspaceId,
-          type: WorkspaceInviteType.Link,
+          type: WorkspaceInviteType.LINK,
           rawToken,
           role: WorkspaceRole.MEMBER,
           createdById: createdById,
@@ -102,7 +101,7 @@ export class WorkspaceInviteService {
   ) {
     const invite = await this.prisma.workspaceInvite.findFirst({
       where: {
-        type: WorkspaceInviteType.Direct,
+        type: WorkspaceInviteType.DIRECT,
         rawToken: dto.token,
         revokedAt: null,
       },
@@ -112,7 +111,7 @@ export class WorkspaceInviteService {
       throw new BadRequestException('Invite not found');
     }
 
-    if (invite.type !== WorkspaceInviteType.Direct) {
+    if (invite.type !== WorkspaceInviteType.DIRECT) {
       throw new BadRequestException('Invalid invite type');
     }
 
@@ -134,7 +133,7 @@ export class WorkspaceInviteService {
   async acceptLinkInvite(dto: LinkInviteResponseDto, currentUserId: string) {
     const invite = await this.prisma.workspaceInvite.findFirst({
       where: {
-        type: WorkspaceInviteType.Link,
+        type: WorkspaceInviteType.LINK,
         rawToken: dto.token,
         revokedAt: null,
       },
@@ -159,7 +158,7 @@ export class WorkspaceInviteService {
   ) {
     const invite = await this.prisma.workspaceInvite.findFirst({
       where: {
-        type: WorkspaceInviteType.Direct,
+        type: WorkspaceInviteType.DIRECT,
         rawToken: dto.token,
         revokedAt: null,
       },
@@ -169,7 +168,7 @@ export class WorkspaceInviteService {
       throw new BadRequestException('Invite not found');
     }
 
-    if (invite.type !== WorkspaceInviteType.Direct) {
+    if (invite.type !== WorkspaceInviteType.DIRECT) {
       throw new BadRequestException('Link invites cannot be denied');
     }
 
@@ -187,7 +186,7 @@ export class WorkspaceInviteService {
           id: uuidv7(),
           inviteId: invite.id,
           userId: currentUser.id,
-          status: WorkspaceInviteResponseStatus.Denied,
+          status: WorkspaceInviteResponseStatus.DENIED,
         },
       });
     } catch (error) {
@@ -280,7 +279,7 @@ export class WorkspaceInviteService {
           select: {
             responses: {
               where: {
-                status: WorkspaceInviteResponseStatus.Accepted,
+                status: WorkspaceInviteResponseStatus.ACCEPTED,
               },
             },
           },
@@ -290,7 +289,7 @@ export class WorkspaceInviteService {
 
     const mappedResult = result.map(({ _count, ...invite }) => ({
       ...this.omitRawToken(invite),
-      ...(invite.type === WorkspaceInviteType.Link
+      ...(invite.type === WorkspaceInviteType.LINK
         ? {
             inviteUrl: invite.rawToken
               ? `${this.getInviteBaseUrl()}${invite.rawToken}`
@@ -325,7 +324,7 @@ export class WorkspaceInviteService {
             id: uuidv7(),
             inviteId,
             userId,
-            status: WorkspaceInviteResponseStatus.Accepted,
+            status: WorkspaceInviteResponseStatus.ACCEPTED,
           },
         });
 
@@ -409,7 +408,7 @@ export class WorkspaceInviteService {
       where: {
         workspaceId,
         invitedEmail,
-        type: WorkspaceInviteType.Direct,
+        type: WorkspaceInviteType.DIRECT,
         revokedAt: null,
         expiresAt: {
           gt: new Date(),
@@ -463,7 +462,7 @@ export class WorkspaceInviteService {
     return this.prisma.workspaceInvite.findFirst({
       where: {
         workspaceId,
-        type: WorkspaceInviteType.Link,
+        type: WorkspaceInviteType.LINK,
         revokedAt: null,
         expiresAt: {
           gt: new Date(),

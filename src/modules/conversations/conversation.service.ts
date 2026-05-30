@@ -1,11 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { ConversationType } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { v7 as uuidv7 } from 'uuid';
 import { ConversationRole } from 'src/shared/enums/conversation-role.enum';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { ConversationMembersService } from '../conversation_members/conversation_members.service';
-import { ConversationType } from 'src/shared/enums/conversation-type.enum';
 
 type ConversationContextOptions = {
   conversationWhere?: {
@@ -207,7 +207,7 @@ export class ConversationService {
         isDeleted: false,
         isArchived: false,
         isPrivate: false,
-        type: ConversationType.Channel,
+        type: ConversationType.CHANNEL,
       },
     });
     if (!channel) {
@@ -234,7 +234,7 @@ export class ConversationService {
       throw new BadRequestException('Channel not found');
     }
 
-    if (channel.type === ConversationType.Dm) {
+    if (channel.type === ConversationType.DM) {
       throw new BadRequestException('Cannot leave a DM conversation');
     }
 

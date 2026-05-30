@@ -14,6 +14,8 @@ jest.mock('uuid', () => ({
 }));
 
 import { WorkspaceMembersService } from './workspace_members.service';
+import { WorkspaceRole } from '../../shared/enums/workspace-role.enum';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 describe('WorkspaceMembersService', () => {
   const prisma = {
@@ -30,7 +32,7 @@ describe('WorkspaceMembersService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new WorkspaceMembersService(prisma as any);
+    service = new WorkspaceMembersService(prisma as unknown as PrismaService);
   });
 
   it('lists members only for non-deleted workspaces', async () => {
@@ -121,14 +123,22 @@ describe('WorkspaceMembersService', () => {
     prisma.workspaceMember.findFirst.mockResolvedValue(null);
 
     await expect(
-      service.grantWorkspaceRole('workspace-id', 'user-id', 'ADMIN' as any),
+      service.grantWorkspaceRole(
+        'workspace-id',
+        'user-id',
+        WorkspaceRole.Admin,
+      ),
     ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
   });
 
   it('rejects invalid workspace roles', async () => {
     await expect(
-      service.grantWorkspaceRole('workspace-id', 'user-id', 'INVALID' as any),
+      service.grantWorkspaceRole(
+        'workspace-id',
+        'user-id',
+        'INVALID' as WorkspaceRole,
+      ),
     ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceMember.findFirst).not.toHaveBeenCalled();
     expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
@@ -136,7 +146,11 @@ describe('WorkspaceMembersService', () => {
 
   it('rejects granting workspace owner role', async () => {
     await expect(
-      service.grantWorkspaceRole('workspace-id', 'user-id', 'OWNER' as any),
+      service.grantWorkspaceRole(
+        'workspace-id',
+        'user-id',
+        WorkspaceRole.Owner,
+      ),
     ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceMember.findFirst).not.toHaveBeenCalled();
     expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
@@ -149,7 +163,11 @@ describe('WorkspaceMembersService', () => {
     });
 
     await expect(
-      service.grantWorkspaceRole('workspace-id', 'owner-id', 'ADMIN' as any),
+      service.grantWorkspaceRole(
+        'workspace-id',
+        'owner-id',
+        WorkspaceRole.Admin,
+      ),
     ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
   });

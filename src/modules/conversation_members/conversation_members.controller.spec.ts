@@ -11,6 +11,7 @@ jest.mock('./conversation_members.service', () => ({
 }));
 
 import { ConversationMembersController } from './conversation_members.controller';
+import { ConversationMembersService } from './conversation_members.service';
 
 describe('ConversationMembersController', () => {
   let controller: ConversationMembersController;
@@ -20,7 +21,7 @@ describe('ConversationMembersController', () => {
 
   beforeEach(() => {
     controller = new ConversationMembersController(
-      conversationMembersService as any,
+      conversationMembersService as unknown as ConversationMembersService,
     );
   });
 

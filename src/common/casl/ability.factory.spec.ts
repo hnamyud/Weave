@@ -1,11 +1,12 @@
 import { Action } from '../../shared/enums/action.enum';
 import { ConversationRole } from '../../shared/enums/conversation-role.enum';
 import { WorkspaceRole } from '../../shared/enums/workspace-role.enum';
+import { UserInterface } from '../../shared/interfaces/users.interface';
 import { CaslAbilityFactory } from './ability.factory';
 
 describe('CaslAbilityFactory', () => {
   const factory = new CaslAbilityFactory();
-  const user = { id: 'user-id', email: 'user@example.com' } as any;
+  const user: UserInterface = { id: 'user-id', email: 'user@example.com' };
 
   it('allows authenticated users to read, update, and delete their user subject', () => {
     const ability = factory.createForUser(user);

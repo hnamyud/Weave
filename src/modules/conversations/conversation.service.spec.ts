@@ -40,8 +40,10 @@ jest.mock(
 );
 
 import { ConversationService } from './conversation.service';
+import { ConversationMembersService } from '../conversation_members/conversation_members.service';
 import { ConversationType } from '../../shared/enums/conversation-type.enum';
 import { ConversationRole } from '../../shared/enums/conversation-role.enum';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 describe('ConversationService', () => {
   const prisma = {
@@ -75,8 +77,8 @@ describe('ConversationService', () => {
     jest.clearAllMocks();
     prisma.$transaction.mockImplementation((callback) => callback(prisma));
     service = new ConversationService(
-      prisma as any,
-      conversationMembersService as any,
+      prisma as unknown as PrismaService,
+      conversationMembersService as unknown as ConversationMembersService,
     );
   });
 

@@ -6,38 +6,44 @@ jest.mock('./users.service', () => ({
 
 import { CHECK_POLICIES_KEY } from '../../common/decorators/policy.decorator';
 import { Action } from '../../shared/enums/action.enum';
+import { UserInterface } from '../../shared/interfaces/users.interface';
 import { UsersController } from './users.controller';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { UsersService } from './users.service';
+
+function getPolicyMetadata(methodName: keyof UsersController): unknown[] {
+  return (Reflect.getMetadata(
+    CHECK_POLICIES_KEY,
+    UsersController.prototype[methodName],
+  ) ?? []) as unknown[];
+}
 
 describe('UsersController', () => {
   const usersService = {
-    getMyProfile: jest.fn<() => Promise<any>>(),
-    getUserProfile: jest.fn<() => Promise<any>>(),
-    updateMyProfile: jest.fn<() => Promise<any>>(),
-    softDeleteUser: jest.fn<() => Promise<any>>(),
+    getMyProfile: jest.fn<() => Promise<unknown>>(),
+    getUserProfile: jest.fn<() => Promise<unknown>>(),
+    updateMyProfile: jest.fn<() => Promise<unknown>>(),
+    softDeleteUser: jest.fn<() => Promise<unknown>>(),
   };
 
   function createController() {
     jest.clearAllMocks();
-    return new UsersController(usersService as any);
+    return new UsersController(usersService as unknown as UsersService);
   }
 
   it('uses user policies for all user profile routes', () => {
-    const getMePolicy = Reflect.getMetadata(
-      CHECK_POLICIES_KEY,
-      UsersController.prototype.getMyProfile,
-    );
-    const getUserPolicy = Reflect.getMetadata(
-      CHECK_POLICIES_KEY,
-      UsersController.prototype.getUserProfile,
-    );
-    const updateMePolicy = Reflect.getMetadata(
-      CHECK_POLICIES_KEY,
-      UsersController.prototype.updateMyProfile,
-    );
-    const deleteMePolicy = Reflect.getMetadata(
-      CHECK_POLICIES_KEY,
-      UsersController.prototype.deleteMyAccount,
-    );
+    const getMePolicy = getPolicyMetadata('getMyProfile') as Array<{
+      action: Action;
+    }>;
+    const getUserPolicy = getPolicyMetadata('getUserProfile') as Array<{
+      action: Action;
+    }>;
+    const updateMePolicy = getPolicyMetadata('updateMyProfile') as Array<{
+      action: Action;
+    }>;
+    const deleteMePolicy = getPolicyMetadata('deleteMyAccount') as Array<{
+      action: Action;
+    }>;
 
     expect(getMePolicy[0].action).toBe(Action.Read);
     expect(getUserPolicy[0].action).toBe(Action.Read);
@@ -47,8 +53,12 @@ describe('UsersController', () => {
 
   it('gets my profile using authenticated user id', async () => {
     const controller = createController();
+    const user: UserInterface = {
+      id: 'user-id',
+      email: 'user@example.com',
+    };
 
-    await controller.getMyProfile({ id: 'user-id' } as any);
+    await controller.getMyProfile(user);
 
     expect(usersService.getMyProfile).toHaveBeenCalledWith('user-id');
   });
@@ -63,17 +73,25 @@ describe('UsersController', () => {
 
   it('updates my profile using authenticated user id', async () => {
     const controller = createController();
-    const dto = { displayName: 'New Name' } as any;
+    const dto: UpdateUserDto = { displayName: 'New Name' };
+    const user: UserInterface = {
+      id: 'user-id',
+      email: 'user@example.com',
+    };
 
-    await controller.updateMyProfile({ id: 'user-id' } as any, dto);
+    await controller.updateMyProfile(user, dto);
 
     expect(usersService.updateMyProfile).toHaveBeenCalledWith(dto, 'user-id');
   });
 
   it('deletes my account using authenticated user id', async () => {
     const controller = createController();
+    const user: UserInterface = {
+      id: 'user-id',
+      email: 'user@example.com',
+    };
 
-    await controller.deleteMyAccount({ id: 'user-id' } as any);
+    await controller.deleteMyAccount(user);
 
     expect(usersService.softDeleteUser).toHaveBeenCalledWith('user-id');
   });

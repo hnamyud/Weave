@@ -1,4 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 jest.mock(
@@ -14,6 +15,8 @@ jest.mock('uuid', () => ({
 }));
 
 import { FileService } from './file.service';
+import { R2StorageService } from './r2-storage.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 describe('FileService', () => {
   const prisma = {
@@ -48,9 +51,9 @@ describe('FileService', () => {
       return values[key];
     });
     service = new FileService(
-      prisma as any,
-      storage as any,
-      configService as any,
+      prisma as unknown as PrismaService,
+      storage as unknown as R2StorageService,
+      configService as unknown as ConfigService,
     );
   });
 
@@ -212,7 +215,7 @@ describe('FileService', () => {
         },
         uploaderId: 'user-id',
       },
-      prisma as any,
+      prisma as unknown as PrismaService,
     );
 
     expect(storage.headObject).toHaveBeenCalledWith(
@@ -239,7 +242,7 @@ describe('FileService', () => {
           },
           uploaderId: 'user-id',
         },
-        prisma as any,
+        prisma as unknown as PrismaService,
       ),
     ).rejects.toThrow(NotFoundException);
   });
