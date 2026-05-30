@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { NotificationSetting, Prisma } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 import { v7 as uuidv7 } from 'uuid';
 import { parsePositiveInteger } from '../../common/utils/parse-interger.utils';
@@ -25,6 +25,35 @@ type CreateNotificationInput = {
   messageId?: string | null;
   type: NotificationType;
   payload?: Prisma.InputJsonValue;
+};
+
+const notificationInclude = {
+  actor: {
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      avatarUrl: true,
+    },
+  },
+} satisfies Prisma.NotificationInclude;
+
+type NotificationWithActor = Prisma.NotificationGetPayload<{
+  include: typeof notificationInclude;
+}>;
+
+type NotificationResponse = {
+  id: string;
+  userId: string;
+  actorId: string | null;
+  workspaceId: string;
+  conversationId: string | null;
+  messageId: string | null;
+  type: NotificationWithActor['type'];
+  payload: Prisma.JsonValue;
+  isRead: boolean;
+  createdAt: Date;
+  actor: NotificationWithActor['actor'];
 };
 
 @Injectable()
@@ -264,7 +293,10 @@ export class NotificationService {
     });
   }
 
-  private isNotificationEnabled(settings: any, type: NotificationType) {
+  private isNotificationEnabled(
+    settings: NotificationSetting,
+    type: NotificationType | NotificationWithActor['type'],
+  ) {
     switch (type) {
       case NotificationType.Mention:
         return settings.notifyMentions;
@@ -280,19 +312,12 @@ export class NotificationService {
   }
 
   private buildNotificationInclude() {
-    return {
-      actor: {
-        select: {
-          id: true,
-          username: true,
-          displayName: true,
-          avatarUrl: true,
-        },
-      },
-    };
+    return notificationInclude;
   }
 
-  private mapNotification(notification: any) {
+  private mapNotification(
+    notification: NotificationWithActor,
+  ): NotificationResponse {
     return {
       id: notification.id,
       userId: notification.userId,
@@ -367,14 +392,19 @@ export class NotificationService {
     };
   }
 
-  private buildCursorResponse(notifications: any[], limit: number) {
+  private buildCursorResponse(
+    notifications: NotificationWithActor[],
+    limit: number,
+  ) {
+    const lastNotification = notifications[notifications.length - 1];
+
     return {
       result: notifications.map((notification) =>
         this.mapNotification(notification),
       ),
       nextCursor:
-        notifications.length === limit
-          ? this.encodeCursor(notifications[notifications.length - 1])
+        notifications.length === limit && lastNotification
+          ? this.encodeCursor(lastNotification)
           : null,
     };
   }

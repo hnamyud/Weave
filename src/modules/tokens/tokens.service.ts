@@ -6,6 +6,14 @@ import { Prisma } from '@prisma/client';
 import { v7 as uuidv7 } from 'uuid';
 import { createHash } from 'crypto';
 import ms, { StringValue } from 'ms';
+import { UserInterface } from 'src/shared/interfaces/users.interface';
+
+type TokenPayload = Pick<UserInterface, 'email' | 'id'> & {
+  iss: string;
+  sub: string;
+};
+
+type RefreshTokenPayload = Pick<UserInterface, 'email' | 'id'>;
 
 @Injectable()
 export class TokensService implements OnModuleInit {
@@ -51,25 +59,28 @@ export class TokensService implements OnModuleInit {
     this.refreshExpiresInMs = refreshExpiresInMs;
   }
 
-  createRefreshToken(payload: any) {
+  createRefreshToken(payload: TokenPayload) {
     return this.jwtService.sign(payload, {
       secret: this.refreshSecret,
-      expiresIn: this.refreshExpiresIn as any,
+      expiresIn: this.refreshExpiresIn,
     });
   }
 
-  createAccessToken(payload: any) {
+  createAccessToken(payload: TokenPayload) {
     return this.jwtService.sign(payload, {
       secret: this.accessSecret,
-      expiresIn: this.accessExpiresIn as any,
+      expiresIn: this.accessExpiresIn,
     });
   }
 
   async processToken(refreshToken: string) {
     try {
-      const payload = this.jwtService.verify(refreshToken, {
-        secret: this.refreshSecret,
-      });
+      const payload = this.jwtService.verify<RefreshTokenPayload>(
+        refreshToken,
+        {
+          secret: this.refreshSecret,
+        },
+      );
 
       const tokenHash = this.hashToken(refreshToken);
       const storedToken = await this.findValidToken(tokenHash);
@@ -78,7 +89,7 @@ export class TokensService implements OnModuleInit {
         throw new BadRequestException('Refresh token không hợp lệ!');
       }
 
-      const newPayload = {
+      const newPayload: TokenPayload = {
         sub: 'Access token',
         iss: 'Backend-core',
         id: payload.id,
@@ -232,7 +243,7 @@ export class TokensService implements OnModuleInit {
     userId: string;
     tokenHash: string;
     expiresAt: Date;
-    deviceInfo?: any;
+    deviceInfo?: Prisma.InputJsonValue;
   }) {
     return this.prisma.refreshToken.create({
       data: {

@@ -1,5 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { PrismaService } from 'prisma/prisma.service';
 
 jest.mock(
   'prisma/prisma.service',
@@ -15,23 +18,39 @@ jest.mock('uuid', () => ({
 
 import { TokensService } from './tokens.service';
 
+type MockPrisma = {
+  refreshToken: {
+    findFirst: jest.Mock<(args: unknown) => Promise<unknown>>;
+    findUnique: jest.Mock<(args: unknown) => Promise<unknown>>;
+    update: jest.Mock<(args: unknown) => Promise<unknown>>;
+    updateMany: jest.Mock<(args: unknown) => Promise<unknown>>;
+    deleteMany: jest.Mock<(args: unknown) => Promise<unknown>>;
+    create: jest.Mock<(args: unknown) => Promise<unknown>>;
+  };
+  $transaction: jest.Mock<
+    (callback: (tx: MockPrisma) => Promise<unknown>) => Promise<unknown>
+  >;
+};
+
 describe('TokensService', () => {
-  const prisma = {
+  const prisma: MockPrisma = {
     refreshToken: {
-      findFirst: jest.fn<(args: any) => Promise<any>>(),
-      findUnique: jest.fn<(args: any) => Promise<any>>(),
-      update: jest.fn<(args: any) => Promise<any>>(),
-      updateMany: jest.fn<(args: any) => Promise<any>>(),
-      deleteMany: jest.fn<(args: any) => Promise<any>>(),
-      create: jest.fn<(args: any) => Promise<any>>(),
+      findFirst: jest.fn<(args: unknown) => Promise<unknown>>(),
+      findUnique: jest.fn<(args: unknown) => Promise<unknown>>(),
+      update: jest.fn<(args: unknown) => Promise<unknown>>(),
+      updateMany: jest.fn<(args: unknown) => Promise<unknown>>(),
+      deleteMany: jest.fn<(args: unknown) => Promise<unknown>>(),
+      create: jest.fn<(args: unknown) => Promise<unknown>>(),
     },
     $transaction:
-      jest.fn<(callback: (tx: any) => Promise<any>) => Promise<any>>(),
+      jest.fn<
+        (callback: (tx: MockPrisma) => Promise<unknown>) => Promise<unknown>
+      >(),
   };
 
   const jwtService = {
-    sign: jest.fn<(payload: any, options?: any) => string>(),
-    verify: jest.fn<(token: string, options?: any) => any>(),
+    sign: jest.fn<(payload: unknown, options?: unknown) => string>(),
+    verify: jest.fn<(token: string, options?: unknown) => unknown>(),
   };
 
   const configService = {
@@ -53,9 +72,9 @@ describe('TokensService', () => {
       return values[key];
     });
     service = new TokensService(
-      prisma as any,
-      jwtService as any,
-      configService as any,
+      prisma as unknown as PrismaService,
+      jwtService as unknown as JwtService,
+      configService as unknown as ConfigService,
     );
     service.onModuleInit();
   });

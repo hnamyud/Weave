@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { PrismaService } from 'prisma/prisma.service';
 
 jest.mock(
   'prisma/prisma.service',
@@ -25,25 +26,25 @@ import { NotificationType } from '../../shared/enums/notification-type';
 describe('NotificationService', () => {
   const prisma = {
     notification: {
-      create: jest.fn<(args: any) => Promise<any>>(),
-      findMany: jest.fn<(args: any) => Promise<any[]>>(),
-      findFirst: jest.fn<(args: any) => Promise<any>>(),
-      update: jest.fn<(args: any) => Promise<any>>(),
-      updateMany: jest.fn<(args: any) => Promise<any>>(),
+      create: jest.fn<(args: unknown) => Promise<unknown>>(),
+      findMany: jest.fn<(args: unknown) => Promise<unknown[]>>(),
+      findFirst: jest.fn<(args: unknown) => Promise<unknown>>(),
+      update: jest.fn<(args: unknown) => Promise<unknown>>(),
+      updateMany: jest.fn<(args: unknown) => Promise<unknown>>(),
     },
     notificationSetting: {
-      findUnique: jest.fn<(args: any) => Promise<any>>(),
-      create: jest.fn<(args: any) => Promise<any>>(),
-      upsert: jest.fn<(args: any) => Promise<any>>(),
+      findUnique: jest.fn<(args: unknown) => Promise<unknown>>(),
+      create: jest.fn<(args: unknown) => Promise<unknown>>(),
+      upsert: jest.fn<(args: unknown) => Promise<unknown>>(),
     },
     workspaceMember: {
-      findFirst: jest.fn<(args: any) => Promise<any>>(),
+      findFirst: jest.fn<(args: unknown) => Promise<unknown>>(),
     },
     user: {
-      findFirst: jest.fn<(args: any) => Promise<any>>(),
+      findFirst: jest.fn<(args: unknown) => Promise<unknown>>(),
     },
     workspace: {
-      findFirst: jest.fn<(args: any) => Promise<any>>(),
+      findFirst: jest.fn<(args: unknown) => Promise<unknown>>(),
     },
   };
 
@@ -52,7 +53,7 @@ describe('NotificationService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUuid.mockReset().mockReturnValue('notification-id');
-    service = new NotificationService(prisma as any);
+    service = new NotificationService(prisma as unknown as PrismaService);
   });
 
   it('creates a notification record for a supported recipient and workspace', async () => {
