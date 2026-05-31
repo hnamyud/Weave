@@ -114,4 +114,60 @@ describe('MailService', () => {
     expect(userService.findOneByEmail).not.toHaveBeenCalled();
     expect(mailQueue.add).not.toHaveBeenCalled();
   });
+
+  it('queues a workspace invite email with a normalized recipient', async () => {
+    await expect(
+      service.sendWorkspaceInviteEmail({
+        invitedEmail: ' Invited@Example.COM ',
+        inviteUrl: 'https://app.test/invite/raw-token',
+        workspaceName: 'Engineering',
+        inviterName: 'Alice',
+      }),
+    ).resolves.toEqual({ sent: true });
+
+    expect(mailQueue.add).toHaveBeenCalledWith(
+      'send-workspace-invite',
+      {
+        email: 'invited@example.com',
+        inviteUrl: 'https://app.test/invite/raw-token',
+        workspaceName: 'Engineering',
+        inviterName: 'Alice',
+        subject: '[Weave] You have been invited to Engineering',
+      },
+      expect.objectContaining({
+        attempts: 3,
+        removeOnComplete: true,
+      }),
+    );
+  });
+
+  it('queues a mention notification email with a normalized recipient', async () => {
+    await expect(
+      service.sendMentionNotificationEmail({
+        email: ' Mentioned@Example.COM ',
+        actorName: 'Bob',
+        workspaceName: 'Engineering',
+        conversationName: 'general',
+        messagePreview: 'Can you review this?',
+        messageUrl: 'https://app.test/messages/message-id',
+      }),
+    ).resolves.toEqual({ sent: true });
+
+    expect(mailQueue.add).toHaveBeenCalledWith(
+      'send-mention-notification',
+      {
+        email: 'mentioned@example.com',
+        actorName: 'Bob',
+        workspaceName: 'Engineering',
+        conversationName: 'general',
+        messagePreview: 'Can you review this?',
+        messageUrl: 'https://app.test/messages/message-id',
+        subject: '[Weave] Bob mentioned you in Engineering',
+      },
+      expect.objectContaining({
+        attempts: 3,
+        removeOnComplete: true,
+      }),
+    );
+  });
 });

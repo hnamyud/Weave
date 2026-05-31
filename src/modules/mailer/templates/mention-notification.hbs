@@ -1,0 +1,16 @@
+<div style="font-family: Arial, sans-serif; color: #222; line-height: 1.5;">
+  <h2 style="margin-bottom: 12px;">You were mentioned</h2>
+  <p>{{actorName}} mentioned you in #{{conversationName}} inside {{workspaceName}}.</p>
+  <blockquote style="margin: 16px 0; padding: 12px 16px; background: #f5f7fb; border-left: 4px solid #2563eb;">
+    {{messagePreview}}
+  </blockquote>
+  {{#if messageUrl}}
+    <p>
+      <a
+        href="{{messageUrl}}"
+        style="display: inline-block; padding: 10px 16px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 6px;"
+      >Open message</a>
+    </p>
+  {{/if}}
+  <p style="font-size: 12px; color: #888;">© {{year}} Weave</p>
+</div>

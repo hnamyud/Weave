@@ -5,6 +5,8 @@ import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { SendResetPasswordDto } from '../auth/dto/reset-password.dto';
 import { randomInt } from 'crypto';
+import { SendMentionNotificationEmailDto } from './dto/send-mention-notification-email.dto';
+import { SendWorkspaceInviteEmailDto } from './dto/send-workspace-invite-email.dto';
 
 @Injectable()
 export class MailService {
@@ -51,14 +53,58 @@ export class MailService {
         otp,
         subject,
       },
-      {
-        attempts: 3,
-        backoff: 5000,
-        removeOnComplete: true,
-      },
+      this.getDefaultJobOptions(),
     );
 
     return { sent: true };
+  }
+
+  async sendWorkspaceInviteEmail(dto: SendWorkspaceInviteEmailDto) {
+    const email = this.normalizeEmail(dto.invitedEmail);
+    const subject = `[Weave] You have been invited to ${dto.workspaceName}`;
+
+    await this.mailQueue.add(
+      'send-workspace-invite',
+      {
+        email,
+        subject,
+        inviteUrl: dto.inviteUrl,
+        workspaceName: dto.workspaceName,
+        inviterName: dto.inviterName,
+      },
+      this.getDefaultJobOptions(),
+    );
+
+    return { sent: true };
+  }
+
+  async sendMentionNotificationEmail(dto: SendMentionNotificationEmailDto) {
+    const email = this.normalizeEmail(dto.email);
+    const subject = `[Weave] ${dto.actorName} mentioned you in ${dto.workspaceName}`;
+
+    await this.mailQueue.add(
+      'send-mention-notification',
+      {
+        email,
+        subject,
+        actorName: dto.actorName,
+        workspaceName: dto.workspaceName,
+        conversationName: dto.conversationName,
+        messagePreview: dto.messagePreview,
+        messageUrl: dto.messageUrl,
+      },
+      this.getDefaultJobOptions(),
+    );
+
+    return { sent: true };
+  }
+
+  private getDefaultJobOptions() {
+    return {
+      attempts: 3,
+      backoff: 5000,
+      removeOnComplete: true,
+    };
   }
 
   private normalizeEmail(email: string) {
