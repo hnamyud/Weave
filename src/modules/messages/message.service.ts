@@ -14,6 +14,7 @@ import { v7 as uuidv7 } from 'uuid';
 import { parsePositiveInteger } from '../../common/utils/parse-interger.utils';
 import { FileMetadataDto } from '../files/dto/file-metadata.dto';
 import { FileService } from '../files/file.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
 import { MessageCursorQueryDto } from './dto/message-cursor-query.dto';
@@ -220,6 +221,7 @@ export class MessageService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly fileService: FileService,
+    private readonly realtimeService: RealtimeService,
   ) {}
 
   async createMessage(dto: CreateMessageDto, userId: string) {
@@ -293,7 +295,9 @@ export class MessageService {
       include: baseMessageInclude,
     });
 
-    return this.mapMessageResponse(updatedMessage);
+    const response = this.mapMessageResponse(updatedMessage);
+    this.realtimeService.emitMessageUpdated(response);
+    return response;
   }
 
   async deleteMessage(messageId: string, userId: string) {
@@ -312,7 +316,7 @@ export class MessageService {
       );
     }
 
-    return this.prisma.message.update({
+    const deletedMessage = await this.prisma.message.update({
       where: {
         id: messageId,
       },
@@ -321,6 +325,13 @@ export class MessageService {
         deletedAt: new Date(),
       },
     });
+
+    this.realtimeService.emitMessageDeleted({
+      id: messageId,
+      conversationId: message.conversationId,
+    });
+
+    return deletedMessage;
   }
 
   async createReply(
@@ -453,67 +464,72 @@ export class MessageService {
     }
 
     const messageId = uuidv7();
-    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const fileObjects: Array<{ id: string }> = [];
+    const createdMessage = await this.prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        const fileObjects: Array<{ id: string }> = [];
 
-      for (const attachment of attachments) {
-        const expectedStorageKey = this.fileService.getExpectedStorageKey(
-          attachment.fileHash,
-        );
-
-        if (attachment.storageKey !== expectedStorageKey) {
-          throw new BadRequestException(
-            'storageKey does not match the expected file hash key',
+        for (const attachment of attachments) {
+          const expectedStorageKey = this.fileService.getExpectedStorageKey(
+            attachment.fileHash,
           );
+
+          if (attachment.storageKey !== expectedStorageKey) {
+            throw new BadRequestException(
+              'storageKey does not match the expected file hash key',
+            );
+          }
+
+          const fileObject = await this.fileService.ensureFileObject(
+            {
+              metadata: attachment,
+              uploaderId: userId,
+            },
+            tx,
+          );
+          fileObjects.push(fileObject);
         }
 
-        const fileObject = await this.fileService.ensureFileObject(
-          {
-            metadata: attachment,
-            uploaderId: userId,
+        await tx.message.create({
+          data: {
+            id: messageId,
+            conversationId: input.conversationId,
+            senderId: userId,
+            parentId: input.parentId,
+            content: trimmedContent ?? null,
           },
-          tx,
-        );
-        fileObjects.push(fileObject);
-      }
-
-      await tx.message.create({
-        data: {
-          id: messageId,
-          conversationId: input.conversationId,
-          senderId: userId,
-          parentId: input.parentId,
-          content: trimmedContent ?? null,
-        },
-        include: baseMessageInclude,
-      });
-
-      if (attachments.length > 0) {
-        await tx.attachment.createMany({
-          data: attachments.map((attachment, index) => ({
-            id: uuidv7(),
-            messageId,
-            fileObjectId: fileObjects[index].id,
-            uploaderId: userId,
-            fileName: attachment.fileName,
-          })),
+          include: baseMessageInclude,
         });
-      }
 
-      const createdMessage = await tx.message.findFirst({
-        where: {
-          id: messageId,
-          isDeleted: false,
-        },
-        include: baseMessageInclude,
-      });
+        if (attachments.length > 0) {
+          await tx.attachment.createMany({
+            data: attachments.map((attachment, index) => ({
+              id: uuidv7(),
+              messageId,
+              fileObjectId: fileObjects[index].id,
+              uploaderId: userId,
+              fileName: attachment.fileName,
+            })),
+          });
+        }
 
-      if (!createdMessage) {
-        throw new NotFoundException('Message not found after creation');
-      }
+        const createdMessage = await tx.message.findFirst({
+          where: {
+            id: messageId,
+            isDeleted: false,
+          },
+          include: baseMessageInclude,
+        });
 
-      return this.mapMessageResponse(createdMessage);
-    });
+        if (!createdMessage) {
+          throw new NotFoundException('Message not found after creation');
+        }
+
+        return this.mapMessageResponse(createdMessage);
+      },
+    );
+
+    this.realtimeService.emitMessageCreated(createdMessage);
+    return createdMessage;
   }
 
   private async ensureConversationMemberByConversationId(

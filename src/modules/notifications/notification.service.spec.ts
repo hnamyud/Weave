@@ -22,6 +22,7 @@ jest.mock('uuid', () => ({
 
 import { NotificationService } from './notification.service';
 import { NotificationType } from '../../shared/enums/notification-type';
+import { RealtimeService } from '../realtime/realtime.service';
 
 describe('NotificationService', () => {
   const prisma = {
@@ -48,12 +49,19 @@ describe('NotificationService', () => {
     },
   };
 
+  const realtimeService = {
+    emitNotificationCreated: jest.fn<(notification: unknown) => void>(),
+  };
+
   let service: NotificationService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockUuid.mockReset().mockReturnValue('notification-id');
-    service = new NotificationService(prisma as unknown as PrismaService);
+    service = new NotificationService(
+      prisma as unknown as PrismaService,
+      realtimeService as unknown as RealtimeService,
+    );
   });
 
   it('creates a notification record for a supported recipient and workspace', async () => {
@@ -102,7 +110,17 @@ describe('NotificationService', () => {
       }),
       include: expect.any(Object),
     });
+    expect(result).not.toBeNull();
+    if (!result) {
+      throw new Error('Expected notification result');
+    }
     expect(result.id).toBe('notification-id');
+    expect(realtimeService.emitNotificationCreated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'notification-id',
+        userId: 'recipient-id',
+      }),
+    );
   });
 
   it('skips self notifications', async () => {
@@ -115,6 +133,7 @@ describe('NotificationService', () => {
 
     expect(prisma.notification.create).not.toHaveBeenCalled();
     expect(result).toBeNull();
+    expect(realtimeService.emitNotificationCreated).not.toHaveBeenCalled();
   });
 
   it('skips creation when settings disable the notification type', async () => {
@@ -137,6 +156,7 @@ describe('NotificationService', () => {
 
     expect(prisma.notification.create).not.toHaveBeenCalled();
     expect(result).toBeNull();
+    expect(realtimeService.emitNotificationCreated).not.toHaveBeenCalled();
   });
 
   it('lists current user notifications with a next cursor', async () => {
@@ -384,5 +404,7 @@ describe('NotificationService', () => {
         type: NotificationType.Mention,
       }),
     ).rejects.toThrow(BadRequestException);
+
+    expect(realtimeService.emitNotificationCreated).not.toHaveBeenCalled();
   });
 });

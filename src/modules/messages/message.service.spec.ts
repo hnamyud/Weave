@@ -18,7 +18,17 @@ jest.mock('uuid', () => ({
 import { PrismaService } from '../../../prisma/prisma.service';
 import { FileMetadataDto } from '../files/dto/file-metadata.dto';
 import { FileService } from '../files/file.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { MessageService } from './message.service';
+
+type FileObjectRecord = {
+  id: string;
+  storageKey: string;
+  fileHash: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+};
 
 describe('MessageService', () => {
   const prisma = {
@@ -49,8 +59,15 @@ describe('MessageService', () => {
         (
           args: { metadata: FileMetadataDto; uploaderId: string },
           tx: PrismaService,
-        ) => Promise<{ id: string }>
+        ) => Promise<FileObjectRecord>
       >(),
+  };
+
+  const realtimeService = {
+    emitMessageCreated: jest.fn<(message: unknown) => void>(),
+    emitMessageUpdated: jest.fn<(message: unknown) => void>(),
+    emitMessageDeleted:
+      jest.fn<(payload: { id: string; conversationId: string }) => void>(),
   };
 
   let service: MessageService;
@@ -123,6 +140,7 @@ describe('MessageService', () => {
     service = new MessageService(
       prisma as unknown as PrismaService,
       fileService as unknown as FileService,
+      realtimeService as unknown as RealtimeService,
     );
   });
 
@@ -138,6 +156,8 @@ describe('MessageService', () => {
         'user-id',
       ),
     ).rejects.toThrow(ForbiddenException);
+
+    expect(realtimeService.emitMessageCreated).not.toHaveBeenCalled();
   });
 
   it('rejects an empty message without attachments', async () => {
@@ -163,6 +183,8 @@ describe('MessageService', () => {
         'user-id',
       ),
     ).rejects.toThrow(BadRequestException);
+
+    expect(realtimeService.emitMessageCreated).not.toHaveBeenCalled();
   });
 
   it('rejects attachment keys that do not match the deterministic storage key', async () => {
@@ -195,6 +217,8 @@ describe('MessageService', () => {
         'user-id',
       ),
     ).rejects.toThrow(BadRequestException);
+
+    expect(realtimeService.emitMessageCreated).not.toHaveBeenCalled();
   });
 
   it('creates an attachment-only message atomically', async () => {
@@ -288,6 +312,12 @@ describe('MessageService', () => {
         },
       ],
     });
+    expect(realtimeService.emitMessageCreated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'message-id',
+        conversationId: 'conversation-id',
+      }),
+    );
   });
 
   it('lists top-level messages newest-first with a next cursor', async () => {
@@ -459,6 +489,12 @@ describe('MessageService', () => {
       include: expect.any(Object),
     });
     expect(result.content).toBe('updated message');
+    expect(realtimeService.emitMessageUpdated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'message-id',
+        content: 'updated message',
+      }),
+    );
   });
 
   it('rejects updating a message for a non-sender', async () => {
@@ -485,6 +521,8 @@ describe('MessageService', () => {
         'other-user-id',
       ),
     ).rejects.toThrow(ForbiddenException);
+
+    expect(realtimeService.emitMessageUpdated).not.toHaveBeenCalled();
   });
 
   it('soft deletes a message for the sender', async () => {
@@ -519,6 +557,10 @@ describe('MessageService', () => {
       },
     });
     expect(result.isDeleted).toBe(true);
+    expect(realtimeService.emitMessageDeleted).toHaveBeenCalledWith({
+      id: 'message-id',
+      conversationId: 'conversation-id',
+    });
   });
 
   it('creates a reply using the parent message conversation', async () => {
@@ -615,6 +657,8 @@ describe('MessageService', () => {
         'user-id',
       ),
     ).rejects.toThrow(BadRequestException);
+
+    expect(realtimeService.emitMessageCreated).not.toHaveBeenCalled();
   });
 
   it('lists replies newest-first and excludes deleted rows', async () => {
@@ -745,5 +789,27 @@ describe('MessageService', () => {
     await expect(
       service.deleteAttachment('attachment-id', 'other-user-id'),
     ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('does not emit message deletion when delete permission is denied', async () => {
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'message-id',
+      senderId: 'author-id',
+      isDeleted: false,
+      conversationId: 'conversation-id',
+      parentId: null,
+      conversation: {
+        members: [{ role: 'MEMBER' }],
+        workspace: {
+          members: [{ role: 'MEMBER' }],
+        },
+      },
+    });
+
+    await expect(
+      service.deleteMessage('message-id', 'other-user-id'),
+    ).rejects.toThrow(ForbiddenException);
+
+    expect(realtimeService.emitMessageDeleted).not.toHaveBeenCalled();
   });
 });

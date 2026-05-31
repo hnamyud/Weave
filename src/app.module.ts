@@ -16,6 +16,7 @@ import { WorkspaceInviteModule } from './modules/workspace_invite/workspace_invi
 import { RedisModule } from './common/cache/redis.module';
 import { ConfigModule } from '@nestjs/config';
 import { CaslModule } from './common/casl/casl.module';
+import { MailModule } from './modules/mailer/mail.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { CaslModule } from './common/casl/casl.module';
     ConversationMembersModule,
     FileModule,
     MessageModule,
+    MailModule,
     NotificationModule,
     RealtimeModule,
     RedisModule,

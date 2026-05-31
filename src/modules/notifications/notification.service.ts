@@ -11,6 +11,7 @@ import { parsePositiveInteger } from '../../common/utils/parse-interger.utils';
 import { NotificationType } from '../../shared/enums/notification-type';
 import { NotificationCursorQueryDto } from './dto/notification-cursor-query.dto';
 import { UpdateNotificationSettingsDto } from './dto/update-notification-settings.dto';
+import { RealtimeService } from '../realtime/realtime.service';
 
 type NotificationCursor = {
   createdAt: string;
@@ -58,7 +59,10 @@ type NotificationResponse = {
 
 @Injectable()
 export class NotificationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtimeService: RealtimeService,
+  ) {}
 
   async createNotification(input: CreateNotificationInput) {
     if (input.actorId && input.actorId === input.userId) {
@@ -115,7 +119,9 @@ export class NotificationService {
       include: this.buildNotificationInclude(),
     });
 
-    return this.mapNotification(notification);
+    const response = this.mapNotification(notification);
+    this.realtimeService.emitNotificationCreated(response);
+    return response;
   }
 
   async listNotifications(userId: string, query: NotificationCursorQueryDto) {
