@@ -12,6 +12,7 @@ import { NotificationType } from '../../shared/enums/notification-type';
 import { NotificationCursorQueryDto } from './dto/notification-cursor-query.dto';
 import { UpdateNotificationSettingsDto } from './dto/update-notification-settings.dto';
 import { RealtimeService } from '../realtime/realtime.service';
+import { MailService } from '../mailer/mail.service';
 
 type NotificationCursor = {
   createdAt: string;
@@ -62,6 +63,7 @@ export class NotificationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtimeService: RealtimeService,
+    private readonly mailService: MailService,
   ) {}
 
   async createNotification(input: CreateNotificationInput) {
@@ -76,6 +78,7 @@ export class NotificationService {
       },
       select: {
         id: true,
+        email: true,
       },
     });
 
@@ -90,6 +93,7 @@ export class NotificationService {
       },
       select: {
         id: true,
+        name: true,
       },
     });
 
@@ -121,6 +125,13 @@ export class NotificationService {
 
     const response = this.mapNotification(notification);
     this.realtimeService.emitNotificationCreated(response);
+    await this.sendMentionEmailIfNeeded({
+      input,
+      notification: response,
+      recipientEmail: recipient.email,
+      workspaceName: workspace.name,
+      settings,
+    });
     return response;
   }
 
@@ -319,6 +330,87 @@ export class NotificationService {
 
   private buildNotificationInclude() {
     return notificationInclude;
+  }
+
+  private async sendMentionEmailIfNeeded({
+    input,
+    notification,
+    recipientEmail,
+    workspaceName,
+    settings,
+  }: {
+    input: CreateNotificationInput;
+    notification: NotificationResponse;
+    recipientEmail: string;
+    workspaceName: string;
+    settings: NotificationSetting;
+  }) {
+    if (
+      input.type !== NotificationType.Mention ||
+      !settings.emailNotifications
+    ) {
+      return;
+    }
+
+    const conversationName = input.conversationId
+      ? await this.getConversationName(input.conversationId)
+      : 'conversation';
+    const messagePreview = input.messageId
+      ? await this.getMessagePreview(input.messageId)
+      : this.getPayloadText(input.payload);
+
+    await this.mailService.sendMentionNotificationEmail({
+      email: recipientEmail,
+      actorName:
+        notification.actor?.displayName ??
+        notification.actor?.username ??
+        'Someone',
+      workspaceName,
+      conversationName,
+      messagePreview,
+    });
+  }
+
+  private async getConversationName(conversationId: string) {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        isDeleted: false,
+      },
+      select: {
+        name: true,
+      },
+    });
+
+    return conversation?.name ?? 'conversation';
+  }
+
+  private async getMessagePreview(messageId: string) {
+    const message = await this.prisma.message.findFirst({
+      where: {
+        id: messageId,
+        isDeleted: false,
+      },
+      select: {
+        content: true,
+      },
+    });
+
+    return message?.content ?? 'You were mentioned in a message.';
+  }
+
+  private getPayloadText(payload: Prisma.InputJsonValue | undefined) {
+    if (
+      payload &&
+      typeof payload === 'object' &&
+      !Array.isArray(payload) &&
+      'text' in payload &&
+      typeof payload.text === 'string'
+    ) {
+      return payload.text;
+    }
+
+    return 'You were mentioned in a message.';
   }
 
   private mapNotification(

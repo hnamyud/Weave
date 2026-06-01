@@ -16,8 +16,37 @@ jest.mock('uuid', () => ({
 
 import { WorkspaceInviteService } from './workspace_invite.service';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { MailService } from '../mailer/mail.service';
 
 describe('WorkspaceInviteService', () => {
+  const activeMember = {
+    id: 'member-id',
+    workspace: {
+      name: 'Engineering',
+    },
+    user: {
+      email: 'creator@example.com',
+      username: 'creator',
+      displayName: 'Creator',
+    },
+  };
+
+  const activeMemberSelect = {
+    id: true,
+    workspace: {
+      select: {
+        name: true,
+      },
+    },
+    user: {
+      select: {
+        email: true,
+        username: true,
+        displayName: true,
+      },
+    },
+  };
+
   const prisma = {
     $transaction:
       jest.fn<(callback: (tx: any) => Promise<any>) => Promise<any>>(),
@@ -42,6 +71,10 @@ describe('WorkspaceInviteService', () => {
     get: jest.fn<(key: string) => string | undefined>(),
   };
 
+  const mailService = {
+    sendWorkspaceInviteEmail: jest.fn<(input: unknown) => Promise<unknown>>(),
+  };
+
   let service: WorkspaceInviteService;
 
   beforeEach(() => {
@@ -57,17 +90,18 @@ describe('WorkspaceInviteService', () => {
     service = new WorkspaceInviteService(
       prisma as unknown as PrismaService,
       configService as unknown as ConfigService,
+      mailService as unknown as MailService,
     );
   });
 
   it('creates invite links with a stored raw token and returns the invite URL', async () => {
-    prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'member-id' });
+    prisma.workspaceMember.findFirst.mockResolvedValue(activeMember);
     prisma.workspaceInvite.create.mockResolvedValue({ id: 'invite-id' });
 
     const inviteUrl = await service.createInviteLink(
       {
         workspaceId: 'workspace-id',
-        expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+        expiresAt: new Date('2026-07-01T00:00:00.000Z'),
       },
       'creator-id',
     );
@@ -95,7 +129,7 @@ describe('WorkspaceInviteService', () => {
       service.createInviteLink(
         {
           workspaceId: 'workspace-id',
-          expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+          expiresAt: new Date('2026-07-01T00:00:00.000Z'),
         },
         'creator-id',
       ),
@@ -103,7 +137,7 @@ describe('WorkspaceInviteService', () => {
   });
 
   it('rejects direct invite creation when invite expiry config is invalid', async () => {
-    prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'member-id' });
+    prisma.workspaceMember.findFirst.mockResolvedValue(activeMember);
     configService.get.mockReturnValue(undefined);
 
     await expect(
@@ -119,7 +153,7 @@ describe('WorkspaceInviteService', () => {
 
   it('rejects direct invites for emails that already belong to workspace members', async () => {
     prisma.workspaceMember.findFirst
-      .mockResolvedValueOnce({ id: 'creator-member-id' })
+      .mockResolvedValueOnce(activeMember)
       .mockResolvedValueOnce({ id: 'invited-member-id' });
 
     await expect(
@@ -137,7 +171,7 @@ describe('WorkspaceInviteService', () => {
 
   it('rejects duplicate active pending direct invites for the same workspace and invited email', async () => {
     prisma.workspaceMember.findFirst
-      .mockResolvedValueOnce({ id: 'creator-member-id' })
+      .mockResolvedValueOnce(activeMember)
       .mockResolvedValueOnce(null);
     prisma.workspaceInvite.findFirst.mockResolvedValue({
       id: 'existing-invite-id',
@@ -166,7 +200,7 @@ describe('WorkspaceInviteService', () => {
 
   it('maps direct invite Prisma create errors to BadRequestException', async () => {
     prisma.workspaceMember.findFirst
-      .mockResolvedValueOnce({ id: 'creator-member-id' })
+      .mockResolvedValueOnce(activeMember)
       .mockResolvedValueOnce(null);
     prisma.workspaceInvite.findFirst.mockResolvedValue(null);
     prisma.workspaceInvite.create.mockRejectedValue({ code: 'P2003' });
@@ -184,7 +218,7 @@ describe('WorkspaceInviteService', () => {
 
   it('creates direct invites with invited email, raw token, and returns an invite URL', async () => {
     prisma.workspaceMember.findFirst
-      .mockResolvedValueOnce({ id: 'creator-member-id' })
+      .mockResolvedValueOnce(activeMember)
       .mockResolvedValueOnce(null);
     prisma.workspaceInvite.findFirst.mockResolvedValue(null);
     prisma.workspaceInvite.create.mockResolvedValue({ id: 'direct-invite-id' });
@@ -207,6 +241,12 @@ describe('WorkspaceInviteService', () => {
         rawToken,
       }),
     });
+    expect(mailService.sendWorkspaceInviteEmail).toHaveBeenCalledWith({
+      invitedEmail: 'invited@example.com',
+      inviteUrl,
+      workspaceName: 'Engineering',
+      inviterName: 'Creator',
+    });
   });
 
   it('maps link invite Prisma create errors to BadRequestException', async () => {
@@ -219,7 +259,7 @@ describe('WorkspaceInviteService', () => {
       service.createInviteLink(
         {
           workspaceId: 'workspace-id',
-          expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+          expiresAt: new Date('2026-07-01T00:00:00.000Z'),
         },
         'creator-id',
       ),
@@ -233,7 +273,7 @@ describe('WorkspaceInviteService', () => {
       type: 'DIRECT',
       rawToken: 'direct-token',
       invitedEmail: 'current@example.com',
-      expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+      expiresAt: new Date('2026-07-01T00:00:00.000Z'),
       revokedAt: null,
     });
     prisma.workspaceInviteResponse.create.mockResolvedValue({
@@ -274,7 +314,7 @@ describe('WorkspaceInviteService', () => {
       type: 'DIRECT',
       rawToken: 'direct-token',
       invitedEmail: 'current@example.com',
-      expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+      expiresAt: new Date('2026-07-01T00:00:00.000Z'),
       revokedAt: new Date('2026-05-01T00:00:00.000Z'),
     });
 
@@ -298,7 +338,7 @@ describe('WorkspaceInviteService', () => {
       workspaceId: 'workspace-id',
       type: 'LINK',
       invitedEmail: null,
-      expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+      expiresAt: new Date('2026-07-01T00:00:00.000Z'),
       revokedAt: null,
     });
 
@@ -323,7 +363,7 @@ describe('WorkspaceInviteService', () => {
       workspaceId: 'workspace-id',
       type: 'LINK',
       rawToken: token,
-      expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+      expiresAt: new Date('2026-07-01T00:00:00.000Z'),
       revokedAt: null,
     });
     prisma.workspaceInviteResponse.create.mockResolvedValue({
@@ -360,7 +400,7 @@ describe('WorkspaceInviteService', () => {
       workspaceId: 'workspace-id',
       revokedAt: null,
     });
-    prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'member-id' });
+    prisma.workspaceMember.findFirst.mockResolvedValue(activeMember);
     prisma.workspaceInvite.update.mockResolvedValue({
       id: 'invite-id-to-revoke',
       revokedAt: new Date('2026-05-21T00:00:00.000Z'),
@@ -380,6 +420,7 @@ describe('WorkspaceInviteService', () => {
           isDeleted: false,
         },
       },
+      select: activeMemberSelect,
     });
     expect(prisma.workspaceInvite.update).toHaveBeenCalledWith({
       where: {
@@ -432,19 +473,19 @@ describe('WorkspaceInviteService', () => {
   });
 
   it('returns the existing active link invite instead of creating a new one', async () => {
-    prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'member-id' });
+    prisma.workspaceMember.findFirst.mockResolvedValue(activeMember);
     prisma.workspaceInvite.findFirst.mockResolvedValue({
       id: 'existing-link-id',
       type: 'LINK',
       rawToken: 'existing-raw-token',
-      expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+      expiresAt: new Date('2026-07-01T00:00:00.000Z'),
       revokedAt: null,
     });
 
     const inviteUrl = await service.createInviteLink(
       {
         workspaceId: 'workspace-id',
-        expiresAt: new Date('2026-06-10T00:00:00.000Z'),
+        expiresAt: new Date('2026-07-10T00:00:00.000Z'),
       },
       'creator-id',
     );
@@ -468,12 +509,12 @@ describe('WorkspaceInviteService', () => {
   });
 
   it('revokes an existing active link that cannot be copied before creating a new link invite', async () => {
-    prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'member-id' });
+    prisma.workspaceMember.findFirst.mockResolvedValue(activeMember);
     prisma.workspaceInvite.findFirst.mockResolvedValue({
       id: 'legacy-link-id',
       type: 'LINK',
       rawToken: null,
-      expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+      expiresAt: new Date('2026-07-01T00:00:00.000Z'),
       revokedAt: null,
     });
     prisma.workspaceInvite.create.mockResolvedValue({ id: 'new-link-id' });
@@ -481,7 +522,7 @@ describe('WorkspaceInviteService', () => {
     await service.createInviteLink(
       {
         workspaceId: 'workspace-id',
-        expiresAt: new Date('2026-06-10T00:00:00.000Z'),
+        expiresAt: new Date('2026-07-10T00:00:00.000Z'),
       },
       'creator-id',
     );
@@ -498,7 +539,7 @@ describe('WorkspaceInviteService', () => {
   });
 
   it('lists active direct workspace invites with pagination', async () => {
-    prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'member-id' });
+    prisma.workspaceMember.findFirst.mockResolvedValue(activeMember);
     prisma.workspaceInvite.count.mockResolvedValue(1);
     prisma.workspaceInvite.findMany.mockResolvedValue([
       {
@@ -506,7 +547,7 @@ describe('WorkspaceInviteService', () => {
         type: 'DIRECT',
         invitedEmail: 'invited@example.com',
         role: 'MEMBER',
-        expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+        expiresAt: new Date('2026-07-01T00:00:00.000Z'),
         revokedAt: null,
         createdAt: new Date('2026-05-25T00:00:00.000Z'),
       },
@@ -542,6 +583,7 @@ describe('WorkspaceInviteService', () => {
           isDeleted: false,
         },
       },
+      select: activeMemberSelect,
     });
     expect(prisma.workspaceInvite.count).toHaveBeenCalledWith({
       where: expectedWhere,
@@ -567,7 +609,7 @@ describe('WorkspaceInviteService', () => {
           type: 'DIRECT',
           invitedEmail: 'invited@example.com',
           role: 'MEMBER',
-          expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+          expiresAt: new Date('2026-07-01T00:00:00.000Z'),
           revokedAt: null,
           createdAt: new Date('2026-05-25T00:00:00.000Z'),
         },
@@ -576,7 +618,7 @@ describe('WorkspaceInviteService', () => {
   });
 
   it('adds accepted usage count for link invites in list results', async () => {
-    prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'member-id' });
+    prisma.workspaceMember.findFirst.mockResolvedValue(activeMember);
     prisma.workspaceInvite.count.mockResolvedValue(1);
     prisma.workspaceInvite.findMany.mockResolvedValue([
       {
@@ -585,7 +627,7 @@ describe('WorkspaceInviteService', () => {
         rawToken: 'raw-link-token',
         invitedEmail: null,
         role: 'MEMBER',
-        expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+        expiresAt: new Date('2026-07-01T00:00:00.000Z'),
         revokedAt: null,
         createdAt: new Date('2026-05-25T00:00:00.000Z'),
         _count: {
@@ -625,7 +667,7 @@ describe('WorkspaceInviteService', () => {
         type: 'LINK',
         invitedEmail: null,
         role: 'MEMBER',
-        expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+        expiresAt: new Date('2026-07-01T00:00:00.000Z'),
         revokedAt: null,
         createdAt: new Date('2026-05-25T00:00:00.000Z'),
         inviteUrl: 'https://app.test/invite/raw-link-token',

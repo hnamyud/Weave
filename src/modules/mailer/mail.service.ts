@@ -5,8 +5,22 @@ import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { SendResetPasswordDto } from '../auth/dto/reset-password.dto';
 import { randomInt } from 'crypto';
-import { SendMentionNotificationEmailDto } from './dto/send-mention-notification-email.dto';
-import { SendWorkspaceInviteEmailDto } from './dto/send-workspace-invite-email.dto';
+
+type SendWorkspaceInviteEmailInput = {
+  invitedEmail: string;
+  inviteUrl: string;
+  workspaceName: string;
+  inviterName: string;
+};
+
+type SendMentionNotificationEmailInput = {
+  email: string;
+  actorName: string;
+  workspaceName: string;
+  conversationName: string;
+  messagePreview: string;
+  messageUrl?: string;
+};
 
 @Injectable()
 export class MailService {
@@ -59,7 +73,7 @@ export class MailService {
     return { sent: true };
   }
 
-  async sendWorkspaceInviteEmail(dto: SendWorkspaceInviteEmailDto) {
+  async sendWorkspaceInviteEmail(dto: SendWorkspaceInviteEmailInput) {
     const email = this.normalizeEmail(dto.invitedEmail);
     const subject = `[Weave] You have been invited to ${dto.workspaceName}`;
 
@@ -78,7 +92,7 @@ export class MailService {
     return { sent: true };
   }
 
-  async sendMentionNotificationEmail(dto: SendMentionNotificationEmailDto) {
+  async sendMentionNotificationEmail(dto: SendMentionNotificationEmailInput) {
     const email = this.normalizeEmail(dto.email);
     const subject = `[Weave] ${dto.actorName} mentioned you in ${dto.workspaceName}`;
 

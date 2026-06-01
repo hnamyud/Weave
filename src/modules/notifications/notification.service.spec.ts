@@ -23,6 +23,7 @@ jest.mock('uuid', () => ({
 import { NotificationService } from './notification.service';
 import { NotificationType } from '../../shared/enums/notification-type';
 import { RealtimeService } from '../realtime/realtime.service';
+import { MailService } from '../mailer/mail.service';
 
 describe('NotificationService', () => {
   const prisma = {
@@ -47,10 +48,21 @@ describe('NotificationService', () => {
     workspace: {
       findFirst: jest.fn<(args: unknown) => Promise<unknown>>(),
     },
+    conversation: {
+      findFirst: jest.fn<(args: unknown) => Promise<unknown>>(),
+    },
+    message: {
+      findFirst: jest.fn<(args: unknown) => Promise<unknown>>(),
+    },
   };
 
   const realtimeService = {
     emitNotificationCreated: jest.fn<(notification: unknown) => void>(),
+  };
+
+  const mailService = {
+    sendMentionNotificationEmail:
+      jest.fn<(input: unknown) => Promise<unknown>>(),
   };
 
   let service: NotificationService;
@@ -61,12 +73,25 @@ describe('NotificationService', () => {
     service = new NotificationService(
       prisma as unknown as PrismaService,
       realtimeService as unknown as RealtimeService,
+      mailService as unknown as MailService,
     );
   });
 
   it('creates a notification record for a supported recipient and workspace', async () => {
-    prisma.user.findFirst.mockResolvedValue({ id: 'recipient-id' });
-    prisma.workspace.findFirst.mockResolvedValue({ id: 'workspace-id' });
+    prisma.user.findFirst.mockResolvedValue({
+      id: 'recipient-id',
+      email: 'recipient@example.com',
+    });
+    prisma.workspace.findFirst.mockResolvedValue({
+      id: 'workspace-id',
+      name: 'Engineering',
+    });
+    prisma.conversation.findFirst.mockResolvedValue({
+      name: 'general',
+    });
+    prisma.message.findFirst.mockResolvedValue({
+      content: 'Can you review this?',
+    });
     prisma.notificationSetting.findUnique.mockResolvedValue({
       notifyMentions: true,
       notifyDirectMessages: true,
@@ -96,6 +121,8 @@ describe('NotificationService', () => {
       userId: 'recipient-id',
       actorId: 'actor-id',
       workspaceId: 'workspace-id',
+      conversationId: 'conversation-id',
+      messageId: 'message-id',
       type: NotificationType.Mention,
       payload: { text: 'mentioned you' },
     });
@@ -121,6 +148,13 @@ describe('NotificationService', () => {
         userId: 'recipient-id',
       }),
     );
+    expect(mailService.sendMentionNotificationEmail).toHaveBeenCalledWith({
+      email: 'recipient@example.com',
+      actorName: 'Alice',
+      workspaceName: 'Engineering',
+      conversationName: 'general',
+      messagePreview: 'Can you review this?',
+    });
   });
 
   it('skips self notifications', async () => {
@@ -134,6 +168,7 @@ describe('NotificationService', () => {
     expect(prisma.notification.create).not.toHaveBeenCalled();
     expect(result).toBeNull();
     expect(realtimeService.emitNotificationCreated).not.toHaveBeenCalled();
+    expect(mailService.sendMentionNotificationEmail).not.toHaveBeenCalled();
   });
 
   it('skips creation when settings disable the notification type', async () => {
@@ -157,6 +192,54 @@ describe('NotificationService', () => {
     expect(prisma.notification.create).not.toHaveBeenCalled();
     expect(result).toBeNull();
     expect(realtimeService.emitNotificationCreated).not.toHaveBeenCalled();
+    expect(mailService.sendMentionNotificationEmail).not.toHaveBeenCalled();
+  });
+
+  it('does not send mention email when email notifications are disabled', async () => {
+    prisma.user.findFirst.mockResolvedValue({
+      id: 'recipient-id',
+      email: 'recipient@example.com',
+    });
+    prisma.workspace.findFirst.mockResolvedValue({
+      id: 'workspace-id',
+      name: 'Engineering',
+    });
+    prisma.notificationSetting.findUnique.mockResolvedValue({
+      notifyMentions: true,
+      notifyDirectMessages: true,
+      notifyAllMessages: false,
+      emailNotifications: false,
+      pushNotifications: true,
+    });
+    prisma.notification.create.mockResolvedValue({
+      id: 'notification-id',
+      userId: 'recipient-id',
+      actorId: 'actor-id',
+      workspaceId: 'workspace-id',
+      conversationId: null,
+      messageId: null,
+      type: NotificationType.Mention,
+      payload: { text: 'mentioned you' },
+      isRead: false,
+      isDeleted: false,
+      createdAt: new Date('2026-05-29T00:00:00.000Z'),
+      actor: {
+        id: 'actor-id',
+        username: 'alice',
+        displayName: 'Alice',
+        avatarUrl: null,
+      },
+    });
+
+    await service.createNotification({
+      userId: 'recipient-id',
+      actorId: 'actor-id',
+      workspaceId: 'workspace-id',
+      type: NotificationType.Mention,
+      payload: { text: 'mentioned you' },
+    });
+
+    expect(mailService.sendMentionNotificationEmail).not.toHaveBeenCalled();
   });
 
   it('lists current user notifications with a next cursor', async () => {

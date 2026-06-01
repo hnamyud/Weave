@@ -1,12 +1,77 @@
-<div style="font-family: Arial, sans-serif; color: #222; line-height: 1.5;">
-  <h2 style="margin-bottom: 12px;">Workspace invitation</h2>
-  <p>{{inviterName}} invited you to join the {{workspaceName}} workspace on Weave.</p>
-  <p>
-    <a
-      href="{{inviteUrl}}"
-      style="display: inline-block; padding: 10px 16px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 6px;"
-    >Accept invitation</a>
-  </p>
-  <p style="font-size: 13px; color: #666;">If you were not expecting this invitation, you can ignore this email.</p>
-  <p style="font-size: 12px; color: #888;">© {{year}} Weave</p>
-</div>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workspace invitation</title>
+  <style>
+    @media only screen and (max-width: 620px) {
+      .email-shell {
+        padding: 24px 12px !important;
+      }
+
+      .email-card {
+        width: 100% !important;
+      }
+
+      .email-section {
+        padding-left: 24px !important;
+        padding-right: 24px !important;
+      }
+    }
+  </style>
+</head>
+
+<body style="margin: 0; padding: 0; background-color: #F0F9FF;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #F0F9FF;">
+    <tr>
+      <td class="email-shell" align="center" style="padding: 40px 16px;">
+        <table class="email-card" role="presentation" width="600" cellspacing="0" cellpadding="0" border="0"
+          style="width: 600px; max-width: 600px; background-color: #FFFFFF; border: 1px solid #BAE6FD; border-radius: 16px; box-shadow: 0 14px 34px rgba(12, 74, 110, 0.12); overflow: hidden; font-family: Arial, Helvetica, sans-serif;">
+          <tr>
+            <td class="email-section" style="padding: 28px 32px 22px; border-bottom: 1px solid #E0F2FE;">
+              <div style="font-size: 22px; line-height: 1.2; font-weight: 800; color: #0C4A6E;">Weave</div>
+              <div style="margin-top: 6px; font-size: 13px; line-height: 1.5; color: #0369A1;">Secure team collaboration</div>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="email-section" style="padding: 32px;">
+              <div style="font-size: 12px; line-height: 1.4; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #0284C7;">Workspace invite</div>
+              <h1 style="margin: 12px 0 0; font-size: 28px; line-height: 1.2; font-weight: 800; color: #082F49;">Join {{workspaceName}} on Weave</h1>
+              <p style="margin: 16px 0 0; font-size: 15px; line-height: 1.65; color: #334155;"><strong style="color: #082F49;">{{inviterName}}</strong> invited you to collaborate in <strong style="color: #082F49;">{{workspaceName}}</strong>.</p>
+
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top: 28px;">
+                <tr>
+                  <td bgcolor="#22C55E" style="border-radius: 8px;">
+                    <a href="{{inviteUrl}}"
+                      style="display: inline-block; padding: 13px 20px; font-size: 15px; line-height: 1.2; font-weight: 700; color: #FFFFFF; text-decoration: none; border-radius: 8px;">Accept invitation</a>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                style="margin-top: 24px; background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px;">
+                <tr>
+                  <td style="padding: 16px 18px; font-size: 14px; line-height: 1.6; color: #475569;">
+                    If you were not expecting this invitation, you can ignore this email.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="email-section" style="padding: 22px 32px; background-color: #F8FAFC; border-top: 1px solid #E2E8F0;">
+              <p style="margin: 0; font-size: 12px; line-height: 1.6; color: #64748B;">© {{year}} Weave. All rights reserved.</p>
+              <p style="margin: 6px 0 0; font-size: 12px; line-height: 1.6; color: #64748B;">This is an automated email. Please do not reply.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+
+</html>

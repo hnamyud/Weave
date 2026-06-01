@@ -12,6 +12,7 @@ import {
 } from './dto/invite-response.dto';
 import { parsePositiveInteger } from '../../common/utils/parse-interger.utils';
 import { UserInterface } from '../../shared/interfaces/users.interface';
+import { MailService } from '../mailer/mail.service';
 
 type CreateInviteLinkInput = CreateInviteLinkDto & { workspaceId: string };
 type CreateDirectInviteInput = CreateDirectInviteDto & { workspaceId: string };
@@ -30,11 +31,15 @@ export class WorkspaceInviteService {
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
   async createDirectInvite(dto: CreateDirectInviteInput, createdById: string) {
     const invitedEmail = this.normalizeEmail(dto.invitedEmail);
-    await this.ensureActiveWorkspaceMember(dto.workspaceId, createdById);
+    const inviter = await this.ensureActiveWorkspaceMember(
+      dto.workspaceId,
+      createdById,
+    );
     await this.ensureEmailIsNotWorkspaceMember(dto.workspaceId, invitedEmail);
     await this.ensureNoPendingDirectInvite(dto.workspaceId, invitedEmail);
     const expiresInDays = this.getInviteExpiresInDays();
@@ -58,7 +63,13 @@ export class WorkspaceInviteService {
       this.handleInviteMutationError(error);
     }
 
-    this.sendDirectInviteEmail(invitedEmail, inviteUrl);
+    await this.mailService.sendWorkspaceInviteEmail({
+      invitedEmail,
+      inviteUrl,
+      workspaceName: inviter.workspace.name,
+      inviterName:
+        inviter.user.displayName ?? inviter.user.username ?? inviter.user.email,
+    });
 
     return inviteUrl;
   }
@@ -391,6 +402,21 @@ export class WorkspaceInviteService {
           isDeleted: false,
         },
       },
+      select: {
+        id: true,
+        workspace: {
+          select: {
+            name: true,
+          },
+        },
+        user: {
+          select: {
+            email: true,
+            username: true,
+            displayName: true,
+          },
+        },
+      },
     });
 
     if (!member) {
@@ -398,6 +424,8 @@ export class WorkspaceInviteService {
         'User is not an active member of this workspace',
       );
     }
+
+    return member;
   }
 
   private async ensureNoPendingDirectInvite(
@@ -525,11 +553,6 @@ export class WorkspaceInviteService {
 
   private normalizeEmail(email: string) {
     return email.trim().toLowerCase();
-  }
-
-  private sendDirectInviteEmail(invitedEmail: string, inviteUrl: string) {
-    void invitedEmail;
-    void inviteUrl;
   }
 
   private handleInviteMutationError(error: unknown): never {
