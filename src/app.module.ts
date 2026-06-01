@@ -17,6 +17,8 @@ import { RedisModule } from './common/cache/redis.module';
 import { ConfigModule } from '@nestjs/config';
 import { CaslModule } from './common/casl/casl.module';
 import { MailModule } from './modules/mailer/mail.module';
+import { PinnedMessagesModule } from './modules/pinned_messages/pinned_messages.module';
+import { ReactionsModule } from './modules/reactions/reactions.module';
 
 @Module({
   imports: [
@@ -29,8 +31,10 @@ import { MailModule } from './modules/mailer/mail.module';
     MessageModule,
     MailModule,
     NotificationModule,
+    PinnedMessagesModule,
     RealtimeModule,
     RedisModule,
+    ReactionsModule,
     SearchModule,
     UsersModule,
     WorkspaceMembersModule,

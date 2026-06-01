@@ -27,4 +27,11 @@ export class CreateMessageDto {
   @ValidateNested({ each: true })
   @Type(() => FileMetadataDto)
   attachments?: FileMetadataDto[];
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsUUID(undefined, { each: true })
+  mentionedUserIds?: string[];
 }

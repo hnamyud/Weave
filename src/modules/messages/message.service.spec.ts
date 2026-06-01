@@ -18,6 +18,8 @@ jest.mock('uuid', () => ({
 import { PrismaService } from '../../../prisma/prisma.service';
 import { FileMetadataDto } from '../files/dto/file-metadata.dto';
 import { FileService } from '../files/file.service';
+import { NotificationType } from '../../shared/enums/notification-type';
+import { NotificationService } from '../notifications/notification.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { MessageService } from './message.service';
 
@@ -34,6 +36,7 @@ describe('MessageService', () => {
   const prisma = {
     conversationMember: {
       findFirst: jest.fn<(args: any) => Promise<any>>(),
+      findMany: jest.fn<(args: any) => Promise<any[]>>(),
     },
     message: {
       findFirst: jest.fn<(args: any) => Promise<any>>(),
@@ -45,6 +48,11 @@ describe('MessageService', () => {
       createMany: jest.fn<(args: any) => Promise<any>>(),
       findFirst: jest.fn<(args: any) => Promise<any>>(),
       update: jest.fn<(args: any) => Promise<any>>(),
+    },
+    mention: {
+      createMany: jest.fn<(args: any) => Promise<any>>(),
+      deleteMany: jest.fn<(args: any) => Promise<any>>(),
+      findMany: jest.fn<(args: any) => Promise<any[]>>(),
     },
     $transaction:
       jest.fn<(callback: (tx: any) => Promise<any>) => Promise<any>>(),
@@ -70,6 +78,10 @@ describe('MessageService', () => {
       jest.fn<(payload: { id: string; conversationId: string }) => void>(),
   };
 
+  const notificationService = {
+    createNotification: jest.fn<(input: unknown) => Promise<unknown>>(),
+  };
+
   let service: MessageService;
 
   beforeEach(() => {
@@ -81,6 +93,13 @@ describe('MessageService', () => {
       .mockReturnValueOnce('attachment-id-2');
     prisma.$transaction.mockImplementation((callback) => callback(prisma));
     prisma.attachment.createMany.mockResolvedValue({ count: 1 });
+    prisma.conversationMember.findMany.mockResolvedValue([]);
+    prisma.mention.createMany.mockResolvedValue({ count: 0 });
+    prisma.mention.deleteMany.mockResolvedValue({ count: 0 });
+    prisma.mention.findMany.mockResolvedValue([]);
+    notificationService.createNotification.mockResolvedValue({
+      id: 'notification-id',
+    });
     prisma.message.create.mockResolvedValue({
       id: 'message-id',
       conversationId: 'conversation-id',
@@ -141,6 +160,7 @@ describe('MessageService', () => {
       prisma as unknown as PrismaService,
       fileService as unknown as FileService,
       realtimeService as unknown as RealtimeService,
+      notificationService as unknown as NotificationService,
     );
   });
 
@@ -320,6 +340,139 @@ describe('MessageService', () => {
     );
   });
 
+  it('creates mentions in batch and notifies mentioned users after creating a message', async () => {
+    mockUuid
+      .mockReset()
+      .mockReturnValueOnce('message-id')
+      .mockReturnValueOnce('mention-id-1')
+      .mockReturnValueOnce('mention-id-2');
+    prisma.conversationMember.findFirst.mockResolvedValue({
+      role: 'MEMBER',
+      conversation: {
+        id: 'conversation-id',
+        workspaceId: 'workspace-id',
+        isArchived: false,
+      },
+    });
+    prisma.conversationMember.findMany.mockResolvedValue([
+      { userId: 'mentioned-user-1' },
+      { userId: 'mentioned-user-2' },
+    ]);
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'message-id',
+      conversationId: 'conversation-id',
+      parentId: null,
+      senderId: 'user-id',
+      content: 'hello @alice @bob',
+      isEdited: false,
+      editedAt: null,
+      createdAt: new Date('2026-05-29T00:00:00.000Z'),
+      updatedAt: new Date('2026-05-29T00:00:00.000Z'),
+      sender: {
+        id: 'user-id',
+        username: 'sender',
+        displayName: 'Sender',
+        avatarUrl: null,
+      },
+      attachments: [],
+      _count: {
+        replies: 0,
+      },
+    });
+
+    await service.createMessage(
+      {
+        conversationId: 'conversation-id',
+        content: 'hello @alice @bob',
+        mentionedUserIds: [
+          'mentioned-user-1',
+          'mentioned-user-1',
+          'user-id',
+          'mentioned-user-2',
+        ],
+      },
+      'user-id',
+    );
+
+    expect(prisma.conversationMember.findMany).toHaveBeenCalledWith({
+      where: {
+        conversationId: 'conversation-id',
+        leftAt: null,
+        userId: {
+          in: ['mentioned-user-1', 'mentioned-user-2'],
+        },
+        user: {
+          deletedAt: null,
+        },
+      },
+      select: {
+        userId: true,
+      },
+    });
+    expect(prisma.mention.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          id: 'mention-id-1',
+          messageId: 'message-id',
+          mentionedUserId: 'mentioned-user-1',
+        },
+        {
+          id: 'mention-id-2',
+          messageId: 'message-id',
+          mentionedUserId: 'mentioned-user-2',
+        },
+      ],
+      skipDuplicates: true,
+    });
+    expect(notificationService.createNotification).toHaveBeenCalledTimes(2);
+    expect(notificationService.createNotification).toHaveBeenCalledWith({
+      userId: 'mentioned-user-1',
+      actorId: 'user-id',
+      workspaceId: 'workspace-id',
+      conversationId: 'conversation-id',
+      messageId: 'message-id',
+      type: NotificationType.Mention,
+      payload: {
+        text: 'hello @alice @bob',
+      },
+    });
+    expect(realtimeService.emitMessageCreated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'message-id',
+      }),
+    );
+  });
+
+  it('rejects message creation when a mentioned user is not an active conversation member', async () => {
+    prisma.conversationMember.findFirst.mockResolvedValue({
+      role: 'MEMBER',
+      conversation: {
+        id: 'conversation-id',
+        workspaceId: 'workspace-id',
+        isArchived: false,
+      },
+    });
+    prisma.conversationMember.findMany.mockResolvedValue([
+      { userId: 'mentioned-user-1' },
+    ]);
+
+    await expect(
+      service.createMessage(
+        {
+          conversationId: 'conversation-id',
+          content: 'hello @alice @bob',
+          mentionedUserIds: ['mentioned-user-1', 'missing-user'],
+        },
+        'user-id',
+      ),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(prisma.message.create).not.toHaveBeenCalled();
+    expect(prisma.mention.createMany).not.toHaveBeenCalled();
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(realtimeService.emitMessageCreated).not.toHaveBeenCalled();
+  });
+
   it('lists top-level messages newest-first with a next cursor', async () => {
     prisma.conversationMember.findFirst.mockResolvedValue({
       role: 'MEMBER',
@@ -497,6 +650,102 @@ describe('MessageService', () => {
     );
   });
 
+  it('syncs edited message mentions and only notifies newly mentioned users', async () => {
+    mockUuid.mockReset().mockReturnValueOnce('new-mention-id');
+    prisma.message.findFirst
+      .mockResolvedValueOnce({
+        id: 'message-id',
+        senderId: 'user-id',
+        isDeleted: false,
+        conversationId: 'conversation-id',
+        parentId: null,
+        conversation: {
+          workspaceId: 'workspace-id',
+          members: [{ role: 'MEMBER' }],
+          workspace: {
+            members: [{ role: 'MEMBER' }],
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        id: 'message-id',
+        conversationId: 'conversation-id',
+        content: 'updated @old @new',
+        parentId: null,
+        senderId: 'user-id',
+        isEdited: true,
+        editedAt: new Date('2026-05-29T01:00:00.000Z'),
+        createdAt: new Date('2026-05-29T00:00:00.000Z'),
+        updatedAt: new Date('2026-05-29T01:00:00.000Z'),
+        sender: {
+          id: 'user-id',
+          username: 'alice',
+          displayName: 'Alice',
+          avatarUrl: null,
+        },
+        _count: {
+          replies: 0,
+        },
+        attachments: [],
+      });
+    prisma.conversationMember.findFirst.mockResolvedValue({
+      role: 'MEMBER',
+      conversation: {
+        id: 'conversation-id',
+        workspaceId: 'workspace-id',
+        isArchived: false,
+      },
+    });
+    prisma.conversationMember.findMany.mockResolvedValue([
+      { userId: 'old-mentioned-user' },
+      { userId: 'new-mentioned-user' },
+    ]);
+    prisma.mention.findMany.mockResolvedValue([
+      { mentionedUserId: 'old-mentioned-user' },
+      { mentionedUserId: 'removed-mentioned-user' },
+    ]);
+
+    await service.updateMessage(
+      'message-id',
+      {
+        content: 'updated @old @new',
+        mentionedUserIds: ['old-mentioned-user', 'new-mentioned-user'],
+      },
+      'user-id',
+    );
+
+    expect(prisma.mention.deleteMany).toHaveBeenCalledWith({
+      where: {
+        messageId: 'message-id',
+        mentionedUserId: {
+          in: ['removed-mentioned-user'],
+        },
+      },
+    });
+    expect(prisma.mention.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          id: 'new-mention-id',
+          messageId: 'message-id',
+          mentionedUserId: 'new-mentioned-user',
+        },
+      ],
+      skipDuplicates: true,
+    });
+    expect(notificationService.createNotification).toHaveBeenCalledTimes(1);
+    expect(notificationService.createNotification).toHaveBeenCalledWith({
+      userId: 'new-mentioned-user',
+      actorId: 'user-id',
+      workspaceId: 'workspace-id',
+      conversationId: 'conversation-id',
+      messageId: 'message-id',
+      type: NotificationType.Mention,
+      payload: {
+        text: 'updated @old @new',
+      },
+    });
+  });
+
   it('rejects updating a message for a non-sender', async () => {
     prisma.message.findFirst.mockResolvedValue({
       id: 'message-id',
@@ -629,6 +878,91 @@ describe('MessageService', () => {
         }),
       }),
     );
+  });
+
+  it('creates mentions for replies using the parent conversation', async () => {
+    mockUuid
+      .mockReset()
+      .mockReturnValueOnce('message-id')
+      .mockReturnValueOnce('mention-id-1');
+    prisma.message.findFirst
+      .mockResolvedValueOnce({
+        id: 'parent-message-id',
+        conversationId: 'conversation-id',
+        parentId: null,
+        isDeleted: false,
+        conversation: {
+          id: 'conversation-id',
+          isArchived: false,
+          members: [{ role: 'MEMBER' }],
+          workspace: {
+            members: [{ role: 'MEMBER' }],
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        id: 'message-id',
+        conversationId: 'conversation-id',
+        parentId: 'parent-message-id',
+        senderId: 'user-id',
+        content: 'reply @alice',
+        isEdited: false,
+        editedAt: null,
+        createdAt: new Date('2026-05-29T00:04:00.000Z'),
+        updatedAt: new Date('2026-05-29T00:04:00.000Z'),
+        sender: {
+          id: 'user-id',
+          username: 'alice',
+          displayName: 'Alice',
+          avatarUrl: null,
+        },
+        attachments: [],
+        _count: {
+          replies: 0,
+        },
+      });
+    prisma.conversationMember.findFirst.mockResolvedValue({
+      role: 'MEMBER',
+      conversation: {
+        id: 'conversation-id',
+        workspaceId: 'workspace-id',
+        isArchived: false,
+      },
+    });
+    prisma.conversationMember.findMany.mockResolvedValue([
+      { userId: 'mentioned-user-1' },
+    ]);
+
+    await service.createReply(
+      'parent-message-id',
+      {
+        content: 'reply @alice',
+        mentionedUserIds: ['mentioned-user-1'],
+      },
+      'user-id',
+    );
+
+    expect(prisma.mention.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          id: 'mention-id-1',
+          messageId: 'message-id',
+          mentionedUserId: 'mentioned-user-1',
+        },
+      ],
+      skipDuplicates: true,
+    });
+    expect(notificationService.createNotification).toHaveBeenCalledWith({
+      userId: 'mentioned-user-1',
+      actorId: 'user-id',
+      workspaceId: 'workspace-id',
+      conversationId: 'conversation-id',
+      messageId: 'message-id',
+      type: NotificationType.Mention,
+      payload: {
+        text: 'reply @alice',
+      },
+    });
   });
 
   it('rejects nested replies', async () => {

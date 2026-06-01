@@ -120,6 +120,82 @@ describe('ConversationMembersService', () => {
     });
   });
 
+  it('searches mention candidates with only fields needed by the composer', async () => {
+    prisma.conversationMember.findFirst.mockResolvedValue({
+      id: 'requester-member-id',
+    });
+    prisma.conversationMember.findMany.mockResolvedValue([
+      {
+        user: {
+          id: 'alice-id',
+          username: 'alice',
+          displayName: 'Alice',
+        },
+      },
+    ]);
+
+    const result = await service.searchMentionCandidates(
+      'conversation-id',
+      'requester-id',
+      'ali',
+    );
+
+    expect(prisma.conversationMember.findMany).toHaveBeenCalledWith({
+      where: {
+        conversationId: 'conversation-id',
+        leftAt: null,
+        user: {
+          deletedAt: null,
+          OR: [
+            {
+              username: {
+                contains: 'ali',
+                mode: 'insensitive',
+              },
+            },
+            {
+              displayName: {
+                contains: 'ali',
+                mode: 'insensitive',
+              },
+            },
+          ],
+        },
+      },
+      take: 20,
+      orderBy: {
+        joinedAt: 'asc',
+      },
+      select: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+          },
+        },
+      },
+    });
+    expect(result).toEqual([
+      {
+        id: 'alice-id',
+        username: 'alice',
+        displayName: 'Alice',
+      },
+    ]);
+    expect(result[0]).not.toHaveProperty('avatarUrl');
+  });
+
+  it('rejects mention search when requester is not in the conversation', async () => {
+    prisma.conversationMember.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.searchMentionCandidates('conversation-id', 'requester-id', 'ali'),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(prisma.conversationMember.findMany).not.toHaveBeenCalled();
+  });
+
   it('rejects invalid pagination values', async () => {
     await expect(
       service.getConversationMembers(0, 10, 'conversation-id', 'requester-id'),

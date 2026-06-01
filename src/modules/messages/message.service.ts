@@ -12,209 +12,32 @@ import {
 import { PrismaService } from 'prisma/prisma.service';
 import { v7 as uuidv7 } from 'uuid';
 import { parsePositiveInteger } from '../../common/utils/parse-interger.utils';
-import { FileMetadataDto } from '../files/dto/file-metadata.dto';
+import { NotificationType } from '../../shared/enums/notification-type';
 import { FileService } from '../files/file.service';
+import { NotificationService } from '../notifications/notification.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
 import { MessageCursorQueryDto } from './dto/message-cursor-query.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
-
-type MessageCursor = {
-  createdAt: string;
-  id: string;
-};
-
-type MessageWriteInput = {
-  conversationId: string;
-  parentId?: string;
-  content?: string;
-  attachments?: FileMetadataDto[];
-};
-
-type MessageSenderResponse = {
-  id: string;
-  username: string | null;
-  displayName: string | null;
-  avatarUrl: string | null;
-};
-
-type MessageParentResponse = {
-  id: string;
-  senderId: string | null;
-  content: string | null;
-  createdAt: Date;
-};
-
-type MessageAttachmentResponse = {
-  id: string;
-  fileName: string;
-  storageKey: string;
-  fileHash: string;
-  fileType: string | null;
-  fileSize: number | null;
-};
-
-type MessageResponse = {
-  id: string;
-  conversationId: string;
-  senderId: string | null;
-  parentId: string | null;
-  content: string | null;
-  isEdited: boolean;
-  editedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  sender: MessageSenderResponse | null;
-  parent: MessageParentResponse | null;
-  attachments: MessageAttachmentResponse[];
-  replyCount: number;
-};
-
-type MessageCursorResponse = {
-  result: MessageResponse[];
-  nextCursor: string | null;
-};
-
-const baseMessageInclude = {
-  sender: {
-    select: {
-      id: true,
-      username: true,
-      displayName: true,
-      avatarUrl: true,
-    },
-  },
-  attachments: {
-    where: {
-      isDeleted: false,
-    },
-    include: {
-      fileObject: {
-        select: {
-          storageKey: true,
-          fileHash: true,
-          fileType: true,
-          fileSize: true,
-        },
-      },
-    },
-  },
-  _count: {
-    select: {
-      replies: {
-        where: {
-          isDeleted: false,
-        },
-      },
-    },
-  },
-} satisfies Prisma.MessageInclude;
-
-function buildMessageWithPermissionInclude(userId: string) {
-  return {
-    ...baseMessageInclude,
-    parent: {
-      select: {
-        id: true,
-        senderId: true,
-        content: true,
-        createdAt: true,
-      },
-    },
-    conversation: {
-      select: {
-        members: {
-          where: {
-            userId,
-            leftAt: null,
-          },
-          select: {
-            role: true,
-          },
-        },
-        workspace: {
-          select: {
-            members: {
-              where: {
-                userId,
-                leftAt: null,
-              },
-              select: {
-                role: true,
-              },
-            },
-          },
-        },
-      },
-    },
-  } satisfies Prisma.MessageInclude;
-}
-
-const conversationMembershipSelect = {
-  role: true,
-  conversation: {
-    select: {
-      id: true,
-      workspaceId: true,
-      isArchived: true,
-    },
-  },
-} satisfies Prisma.ConversationMemberSelect;
-
-function buildAttachmentPermissionSelect(userId: string) {
-  return {
-    id: true,
-    uploaderId: true,
-    message: {
-      select: {
-        senderId: true,
-        conversation: {
-          select: {
-            members: {
-              where: {
-                userId,
-                leftAt: null,
-              },
-              select: {
-                role: true,
-              },
-            },
-            workspace: {
-              select: {
-                members: {
-                  where: {
-                    userId,
-                    leftAt: null,
-                  },
-                  select: {
-                    role: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  } satisfies Prisma.AttachmentSelect;
-}
-
-type MessageRecord = Prisma.MessageGetPayload<{
-  include: typeof baseMessageInclude;
-}>;
-
-type MessageWithPermissionContext = Prisma.MessageGetPayload<{
-  include: ReturnType<typeof buildMessageWithPermissionInclude>;
-}>;
-
-type ConversationMembership = Prisma.ConversationMemberGetPayload<{
-  select: typeof conversationMembershipSelect;
-}>;
-
-type AttachmentPermissionRecord = Prisma.AttachmentGetPayload<{
-  select: ReturnType<typeof buildAttachmentPermissionSelect>;
-}>;
+import {
+  baseMessageInclude,
+  buildAttachmentPermissionSelect,
+  buildMessageWithPermissionInclude,
+  conversationMembershipSelect,
+} from './message.prisma-select';
+import type {
+  AttachmentPermissionRecord,
+  ConversationMembership,
+  MessageRecord,
+  MessageWithPermissionContext,
+} from './types/message-prisma.type';
+import type {
+  MessageCursor,
+  MessageCursorResponse,
+  MessageResponse,
+  MessageWriteInput,
+} from './types/message.type';
 
 @Injectable()
 export class MessageService {
@@ -222,6 +45,7 @@ export class MessageService {
     private readonly prisma: PrismaService,
     private readonly fileService: FileService,
     private readonly realtimeService: RealtimeService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async createMessage(dto: CreateMessageDto, userId: string) {
@@ -230,6 +54,7 @@ export class MessageService {
         conversationId: dto.conversationId,
         content: dto.content,
         attachments: dto.attachments,
+        mentionedUserIds: dto.mentionedUserIds,
       },
       userId,
     );
@@ -283,20 +108,76 @@ export class MessageService {
       throw new ForbiddenException('Only the sender can edit this message');
     }
 
-    const updatedMessage = await this.prisma.message.update({
-      where: {
-        id: messageId,
-      },
-      data: {
-        content,
-        isEdited: true,
-        editedAt: new Date(),
-      },
-      include: baseMessageInclude,
-    });
+    const mentionedUserIds = await this.validateMentionedUserIds(
+      message.conversationId,
+      userId,
+      dto.mentionedUserIds,
+    );
+    const newMentionedUserIds = await this.prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        const existingMentions = await tx.mention.findMany({
+          where: {
+            messageId,
+          },
+          select: {
+            mentionedUserId: true,
+          },
+        });
+        const existingMentionedUserIds = existingMentions.map(
+          (mention) => mention.mentionedUserId,
+        );
+        const mentionedUserIdsToRemove = existingMentionedUserIds.filter(
+          (mentionedUserId) => !mentionedUserIds.includes(mentionedUserId),
+        );
+        const mentionedUserIdsToAdd = mentionedUserIds.filter(
+          (mentionedUserId) =>
+            !existingMentionedUserIds.includes(mentionedUserId),
+        );
 
-    const response = this.mapMessageResponse(updatedMessage);
+        const updatedMessage = await tx.message.update({
+          where: {
+            id: messageId,
+          },
+          data: {
+            content,
+            isEdited: true,
+            editedAt: new Date(),
+          },
+          include: baseMessageInclude,
+        });
+
+        if (mentionedUserIdsToRemove.length > 0) {
+          await tx.mention.deleteMany({
+            where: {
+              messageId,
+              mentionedUserId: {
+                in: mentionedUserIdsToRemove,
+              },
+            },
+          });
+        }
+
+        await this.createMentionRecords(tx, messageId, mentionedUserIdsToAdd);
+
+        return {
+          newMentionedUserIds: mentionedUserIdsToAdd,
+          updatedMessage,
+        };
+      },
+    );
+
+    const response = this.mapMessageResponse(
+      newMentionedUserIds.updatedMessage,
+    );
     this.realtimeService.emitMessageUpdated(response);
+    await this.createMentionNotifications({
+      mentionedUserIds: newMentionedUserIds.newMentionedUserIds,
+      actorId: userId,
+      workspaceId: message.conversation.workspaceId,
+      conversationId: message.conversationId,
+      messageId,
+      text: content,
+    });
     return response;
   }
 
@@ -351,6 +232,7 @@ export class MessageService {
         parentId: parentMessage.id,
         content: dto.content,
         attachments: dto.attachments,
+        mentionedUserIds: dto.mentionedUserIds,
       },
       userId,
     );
@@ -463,6 +345,11 @@ export class MessageService {
       );
     }
 
+    const mentionedUserIds = await this.validateMentionedUserIds(
+      input.conversationId,
+      userId,
+      input.mentionedUserIds,
+    );
     const messageId = uuidv7();
     const createdMessage = await this.prisma.$transaction(
       async (tx: Prisma.TransactionClient) => {
@@ -512,6 +399,8 @@ export class MessageService {
           });
         }
 
+        await this.createMentionRecords(tx, messageId, mentionedUserIds);
+
         const createdMessage = await tx.message.findFirst({
           where: {
             id: messageId,
@@ -529,7 +418,119 @@ export class MessageService {
     );
 
     this.realtimeService.emitMessageCreated(createdMessage);
+    await this.createMentionNotifications({
+      mentionedUserIds,
+      actorId: userId,
+      workspaceId: membership.conversation.workspaceId,
+      conversationId: input.conversationId,
+      messageId,
+      text: trimmedContent,
+    });
     return createdMessage;
+  }
+
+  private normalizeMentionedUserIds(
+    mentionedUserIds: string[] | undefined,
+    senderId: string,
+  ) {
+    return [...new Set(mentionedUserIds ?? [])].filter(
+      (mentionedUserId) => mentionedUserId !== senderId,
+    );
+  }
+
+  private async validateMentionedUserIds(
+    conversationId: string,
+    senderId: string,
+    mentionedUserIds: string[] | undefined,
+  ) {
+    const normalizedMentionedUserIds = this.normalizeMentionedUserIds(
+      mentionedUserIds,
+      senderId,
+    );
+
+    if (normalizedMentionedUserIds.length === 0) {
+      return [];
+    }
+
+    const validMentionedMembers = await this.prisma.conversationMember.findMany(
+      {
+        where: {
+          conversationId,
+          leftAt: null,
+          userId: {
+            in: normalizedMentionedUserIds,
+          },
+          user: {
+            deletedAt: null,
+          },
+        },
+        select: {
+          userId: true,
+        },
+      },
+    );
+    const validMentionedUserIds = validMentionedMembers.map(
+      (member) => member.userId,
+    );
+
+    if (validMentionedUserIds.length !== normalizedMentionedUserIds.length) {
+      throw new BadRequestException(
+        'Mentioned users must be active conversation members',
+      );
+    }
+
+    return normalizedMentionedUserIds;
+  }
+
+  private async createMentionRecords(
+    tx: Prisma.TransactionClient,
+    messageId: string,
+    mentionedUserIds: string[],
+  ) {
+    if (mentionedUserIds.length === 0) {
+      return;
+    }
+
+    await tx.mention.createMany({
+      data: mentionedUserIds.map((mentionedUserId) => ({
+        id: uuidv7(),
+        messageId,
+        mentionedUserId,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  private async createMentionNotifications({
+    mentionedUserIds,
+    actorId,
+    workspaceId,
+    conversationId,
+    messageId,
+    text,
+  }: {
+    mentionedUserIds: string[];
+    actorId: string;
+    workspaceId: string;
+    conversationId: string;
+    messageId: string;
+    text: string | undefined;
+  }) {
+    await Promise.all(
+      mentionedUserIds.map((mentionedUserId) =>
+        this.notificationService.createNotification({
+          userId: mentionedUserId,
+          actorId,
+          workspaceId,
+          conversationId,
+          messageId,
+          type: NotificationType.Mention,
+          payload: {
+            text: text ?? 'You were mentioned in a message.',
+          },
+        }),
+      ),
+    );
   }
 
   private async ensureConversationMemberByConversationId(

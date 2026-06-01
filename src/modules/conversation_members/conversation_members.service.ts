@@ -63,6 +63,58 @@ export class ConversationMembersService {
     };
   }
 
+  async searchMentionCandidates(
+    conversationId: string,
+    requesterId: string,
+    query?: string,
+  ) {
+    await this.ensureConversationMember(conversationId, requesterId);
+
+    const q = query?.trim();
+    const result = await this.prisma.conversationMember.findMany({
+      where: {
+        conversationId,
+        leftAt: null,
+        user: {
+          deletedAt: null,
+          ...(q
+            ? {
+                OR: [
+                  {
+                    username: {
+                      contains: q,
+                      mode: 'insensitive' as const,
+                    },
+                  },
+                  {
+                    displayName: {
+                      contains: q,
+                      mode: 'insensitive' as const,
+                    },
+                  },
+                ],
+              }
+            : {}),
+        },
+      },
+      take: 20,
+      orderBy: {
+        joinedAt: 'asc',
+      },
+      select: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+          },
+        },
+      },
+    });
+
+    return result.map((member) => member.user);
+  }
+
   async addConversationMember(conversationId: string, userId: string) {
     const member = await this.prisma.conversationMember.findUnique({
       where: {
