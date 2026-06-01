@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { v7 as uuidv7 } from 'uuid';
-import { CreateDirectInviteDto, CreateInviteLinkDto } from './dto/invite.dto';
 import { WorkspaceInviteType, WorkspaceRole } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'crypto';
@@ -13,18 +12,12 @@ import {
 import { parsePositiveInteger } from '../../common/utils/parse-interger.utils';
 import { UserInterface } from '../../shared/interfaces/users.interface';
 import { MailService } from '../mailer/mail.service';
-
-type CreateInviteLinkInput = CreateInviteLinkDto & { workspaceId: string };
-type CreateDirectInviteInput = CreateDirectInviteDto & { workspaceId: string };
-type InviteListStatus = 'ACTIVE';
-type GetWorkspaceInvitesInput = {
-  currentPage: number;
-  limit: number;
-  workspaceId: string;
-  requesterId: string;
-  type?: string;
-  status?: string;
-};
+import type {
+  CreateDirectInviteInput,
+  CreateInviteLinkInput,
+  GetWorkspaceInvitesInput,
+  InviteListStatus,
+} from './types/workspace-invite.type';
 
 @Injectable()
 export class WorkspaceInviteService {

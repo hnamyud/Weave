@@ -6,14 +6,7 @@ import { Prisma } from '@prisma/client';
 import { v7 as uuidv7 } from 'uuid';
 import { createHash } from 'crypto';
 import ms, { StringValue } from 'ms';
-import { UserInterface } from 'src/shared/interfaces/users.interface';
-
-type TokenPayload = Pick<UserInterface, 'email' | 'id'> & {
-  iss: string;
-  sub: string;
-};
-
-type RefreshTokenPayload = Pick<UserInterface, 'email' | 'id'>;
+import type { RefreshTokenPayload, TokenPayload } from './types/token.type';
 
 @Injectable()
 export class TokensService implements OnModuleInit {

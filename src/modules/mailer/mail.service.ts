@@ -5,22 +5,10 @@ import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { SendResetPasswordDto } from '../auth/dto/reset-password.dto';
 import { randomInt } from 'crypto';
-
-type SendWorkspaceInviteEmailInput = {
-  invitedEmail: string;
-  inviteUrl: string;
-  workspaceName: string;
-  inviterName: string;
-};
-
-type SendMentionNotificationEmailInput = {
-  email: string;
-  actorName: string;
-  workspaceName: string;
-  conversationName: string;
-  messagePreview: string;
-  messageUrl?: string;
-};
+import type {
+  SendMentionNotificationEmailInput,
+  SendWorkspaceInviteEmailInput,
+} from './types/mail.type';
 
 @Injectable()
 export class MailService {

@@ -1,36 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { EVENTS } from '../../shared/constants/socket-event.constant';
 import { ROOMS } from '../../shared/constants/socket-room.constant';
-import { SocketAttachment } from '../../shared/interfaces/socket-attachment.interface';
 import { SocketMessage } from '../../shared/interfaces/socket-message.interface';
 import { SocketNotification } from '../../shared/interfaces/socket-notification.interface';
-import { SocketUser } from '../../shared/interfaces/socket-user.interface';
 import { RealtimeGateway } from './realtime.gateway';
-
-type RealtimeMessageInput = {
-  id: string;
-  conversationId: string;
-  parentId: string | null;
-  content: string | null;
-  isEdited: boolean;
-  editedAt: Date | string | null;
-  createdAt: Date | string;
-  sender: SocketUser | null;
-  attachments: SocketAttachment[];
-  replyCount: number;
-};
-
-type RealtimeNotificationInput = {
-  id: string;
-  userId: string;
-  actorId: string | null;
-  workspaceId: string;
-  conversationId: string | null;
-  messageId: string | null;
-  type: string;
-  payload: unknown;
-  createdAt: Date | string;
-};
+import type {
+  RealtimeMessageInput,
+  RealtimeNotificationInput,
+} from './types/realtime.type';
 
 @Injectable()
 export class RealtimeService {

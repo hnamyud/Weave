@@ -13,50 +13,13 @@ import { NotificationCursorQueryDto } from './dto/notification-cursor-query.dto'
 import { UpdateNotificationSettingsDto } from './dto/update-notification-settings.dto';
 import { RealtimeService } from '../realtime/realtime.service';
 import { MailService } from '../mailer/mail.service';
-
-type NotificationCursor = {
-  createdAt: string;
-  id: string;
-};
-
-type CreateNotificationInput = {
-  userId: string;
-  actorId?: string | null;
-  workspaceId: string;
-  conversationId?: string | null;
-  messageId?: string | null;
-  type: NotificationType;
-  payload?: Prisma.InputJsonValue;
-};
-
-const notificationInclude = {
-  actor: {
-    select: {
-      id: true,
-      username: true,
-      displayName: true,
-      avatarUrl: true,
-    },
-  },
-} satisfies Prisma.NotificationInclude;
-
-type NotificationWithActor = Prisma.NotificationGetPayload<{
-  include: typeof notificationInclude;
-}>;
-
-type NotificationResponse = {
-  id: string;
-  userId: string;
-  actorId: string | null;
-  workspaceId: string;
-  conversationId: string | null;
-  messageId: string | null;
-  type: NotificationWithActor['type'];
-  payload: Prisma.JsonValue;
-  isRead: boolean;
-  createdAt: Date;
-  actor: NotificationWithActor['actor'];
-};
+import {
+  CreateNotificationInput,
+  NotificationCursor,
+  NotificationResponse,
+  NotificationWithActor,
+  notificationInclude,
+} from './types/notification.type';
 
 @Injectable()
 export class NotificationService {
