@@ -98,4 +98,19 @@ describe('RealtimeService', () => {
       }),
     );
   });
+
+  it('emits pinned message changes to the conversation room', () => {
+    const payload = {
+      conversationId: 'conversation-id',
+      messageId: 'message-id',
+      pinnedBy: 'user-id',
+    };
+
+    service.emitPinnedMessageAdded(payload);
+    service.emitPinnedMessageRemoved(payload);
+
+    expect(to).toHaveBeenCalledWith(ROOMS.conversation('conversation-id'));
+    expect(emit).toHaveBeenCalledWith(EVENTS.PINNED_MESSAGE_ADDED, payload);
+    expect(emit).toHaveBeenCalledWith(EVENTS.PINNED_MESSAGE_REMOVED, payload);
+  });
 });

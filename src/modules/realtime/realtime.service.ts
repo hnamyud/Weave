@@ -7,6 +7,7 @@ import { RealtimeGateway } from './realtime.gateway';
 import type {
   RealtimeMessageInput,
   RealtimeNotificationInput,
+  RealtimePinnedMessageInput,
 } from './types/realtime.type';
 
 @Injectable()
@@ -39,6 +40,20 @@ export class RealtimeService {
       .getServer()
       .to(ROOMS.user(notification.userId))
       .emit(EVENTS.NOTIFICATION_NEW, this.mapNotification(notification));
+  }
+
+  emitPinnedMessageAdded(pinnedMessage: RealtimePinnedMessageInput): void {
+    this.gateway
+      .getServer()
+      .to(ROOMS.conversation(pinnedMessage.conversationId))
+      .emit(EVENTS.PINNED_MESSAGE_ADDED, pinnedMessage);
+  }
+
+  emitPinnedMessageRemoved(pinnedMessage: RealtimePinnedMessageInput): void {
+    this.gateway
+      .getServer()
+      .to(ROOMS.conversation(pinnedMessage.conversationId))
+      .emit(EVENTS.PINNED_MESSAGE_REMOVED, pinnedMessage);
   }
 
   private mapMessage(message: RealtimeMessageInput): SocketMessage {

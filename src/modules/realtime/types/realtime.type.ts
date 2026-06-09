@@ -25,3 +25,9 @@ export type RealtimeNotificationInput = {
   payload: unknown;
   createdAt: Date | string;
 };
+
+export type RealtimePinnedMessageInput = {
+  conversationId: string;
+  messageId: string;
+  pinnedBy: string;
+};
