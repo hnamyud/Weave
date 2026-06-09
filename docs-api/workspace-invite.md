@@ -2,26 +2,26 @@
 
 Controller prefix: `/api/v1/workspace-invite`
 
-Tat ca endpoint yeu cau JWT; mot so endpoint con yeu cau guard/policy workspace.
+Tất cả endpoint yêu cầu JWT; một số endpoint còn yêu cầu guard/policy workspace.
 
 ## GET /api/v1/workspace-invite/:workspaceId
 
 - Guard: `WorkspaceMemberGuard`
 - Policy: `RequireWorkspacePermission(Action.Read)`
-- Mo ta: Lay danh sach invite cua workspace.
+- Mô tả: Lấy danh sách invite của workspace.
 
 ### Query params
 
-- `current`: trang hien tai
-- `pageSize`: so ban ghi moi trang
-- `type`: loai invite
-- `status`: trang thai invite
+- `current`: trang hiện tại
+- `pageSize`: số bản ghi mỗi trang
+- `type`: loại invite
+- `status`: trạng thái invite
 
 ## POST /api/v1/workspace-invite/:workspaceId/direct
 
 - Guard: `WorkspaceMemberGuard`
 - Policy: `RequireWorkspacePermission(Action.Manage)`
-- Mo ta: Tao direct invite theo email.
+- Mô tả: Tạo direct invite theo email.
 
 ### Body
 
@@ -35,7 +35,7 @@ Tat ca endpoint yeu cau JWT; mot so endpoint con yeu cau guard/policy workspace.
 
 - Guard: `WorkspaceMemberGuard`
 - Policy: `RequireWorkspacePermission(Action.Manage)`
-- Mo ta: Tao invite link cho workspace.
+- Mô tả: Tạo invite link cho workspace.
 
 ### Body
 
@@ -47,7 +47,7 @@ Tat ca endpoint yeu cau JWT; mot so endpoint con yeu cau guard/policy workspace.
 
 ## POST /api/v1/workspace-invite/accept-direct
 
-- Mo ta: Chap nhan direct invite bang token.
+- Mô tả: Chấp nhận direct invite bằng token.
 
 ### Body
 
@@ -59,7 +59,7 @@ Tat ca endpoint yeu cau JWT; mot so endpoint con yeu cau guard/policy workspace.
 
 ## POST /api/v1/workspace-invite/accept-link
 
-- Mo ta: Chap nhan invite link bang token.
+- Mô tả: Chấp nhận invite link bằng token.
 
 ### Body
 
@@ -71,7 +71,7 @@ Tat ca endpoint yeu cau JWT; mot so endpoint con yeu cau guard/policy workspace.
 
 ## POST /api/v1/workspace-invite/deny
 
-- Mo ta: Tu choi direct invite.
+- Mô tả: Từ chối direct invite.
 
 ### Body
 
@@ -85,10 +85,10 @@ Tat ca endpoint yeu cau JWT; mot so endpoint con yeu cau guard/policy workspace.
 
 - Guard: `WorkspaceMemberGuard`
 - Policy: `RequireWorkspacePermission(Action.Manage)`
-- Mo ta: Thu hoi invite.
+- Mô tả: Thu hồi invite.
 
-## Loi thuong gap
+## Lỗi thường gặp
 
-- `400 Bad Request`: token khong hop le, invite het han hoac da xu ly
-- `403 Forbidden`: khong du quyen tao/thu hoi invite
-- `404 Not Found`: invite khong ton tai
+- `400 Bad Request`: token không hợp lệ, invite hết hạn hoặc đã xử lý
+- `403 Forbidden`: không đủ quyền tạo/thu hồi invite
+- `404 Not Found`: invite không tồn tại

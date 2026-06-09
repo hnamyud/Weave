@@ -2,9 +2,9 @@
 
 Controller prefix: `/api/v1/files`
 
-Tat ca endpoint deu can Bearer JWT.
+Tất cả endpoint đều cần Bearer JWT.
 
-Ca hai endpoint dung chung schema file metadata:
+Cả hai endpoint dùng chung schema file metadata:
 
 ```json
 {
@@ -18,16 +18,16 @@ Ca hai endpoint dung chung schema file metadata:
 
 ## POST /api/v1/files/check
 
-- Mo ta: Kiem tra file metadata truoc khi upload/gan vao message.
+- Mô tả: Kiểm tra file metadata trước khi upload/gắn vào message.
 
 ## POST /api/v1/files/presign
 
-- Mo ta: Tao presigned upload URL.
+- Mô tả: Tạo presigned upload URL.
 
 ## Validation
 
-- `fileHash`: SHA-256 lowercase hex, 64 ky tu
-- `fileName`: bat buoc
-- `fileType`: bat buoc
+- `fileHash`: SHA-256 lowercase hex, 64 ký tự
+- `fileName`: bắt buộc
+- `fileType`: bắt buộc
 - `fileSize`: 1..15728640 bytes
 - `storageKey`: optional

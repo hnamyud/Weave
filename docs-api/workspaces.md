@@ -2,11 +2,11 @@
 
 Controller prefix: `/api/v1/workspace`
 
-Tat ca endpoint deu can Bearer JWT.
+Tất cả endpoint đều cần Bearer JWT.
 
 ## POST /api/v1/workspace
 
-- Mo ta: Tao workspace moi. User tao ra thuong tro thanh owner.
+- Mô tả: Tạo workspace mới. User tạo ra thường trở thành owner.
 
 ### Body
 
@@ -20,24 +20,24 @@ Tat ca endpoint deu can Bearer JWT.
 
 ## GET /api/v1/workspace/
 
-- Mo ta: Lay danh sach workspace cua user hien tai.
+- Mô tả: Lấy danh sách workspace của user hiện tại.
 
 ### Query params
 
-- `current`: trang hien tai
-- `pageSize`: so ban ghi moi trang
+- `current`: trang hiện tại
+- `pageSize`: số bản ghi mỗi trang
 
 ## GET /api/v1/workspace/:id
 
 - Guard: `WorkspaceMemberGuard`
 - Policy: `RequireWorkspacePermission(Action.Read)`
-- Mo ta: Lay chi tiet workspace neu user la member va co quyen doc.
+- Mô tả: Lấy chi tiết workspace nếu user là member và có quyền đọc.
 
 ## PATCH /api/v1/workspace/:id
 
 - Guard: `WorkspaceMemberGuard`
 - Policy: `RequireWorkspacePermission(Action.Update)`
-- Mo ta: Cap nhat workspace.
+- Mô tả: Cập nhật workspace.
 
 ### Body
 
@@ -53,11 +53,11 @@ Tat ca endpoint deu can Bearer JWT.
 
 - Guard: `WorkspaceMemberGuard`
 - Policy: `RequireWorkspacePermission(Action.Delete)`
-- Mo ta: Xoa mem workspace.
+- Mô tả: Xóa mềm workspace.
 
-## Loi thuong gap
+## Lỗi thường gặp
 
 - `400 Bad Request`: slug sai format
-- `401 Unauthorized`: thieu hoac sai JWT
-- `403 Forbidden`: khong du quyen tren workspace
-- `404 Not Found`: workspace khong ton tai
+- `401 Unauthorized`: thiếu hoặc sai JWT
+- `403 Forbidden`: không đủ quyền trên workspace
+- `404 Not Found`: workspace không tồn tại

@@ -5,8 +5,8 @@ Controller prefix: `/api/v1/mail`
 ## POST /api/v1/mail/reset-password
 
 - Auth: Public
-- Throttle: toi da 1 request / 60 giay theo rule `short`
-- Mo ta: Gui ma OTP reset password qua email.
+- Throttle: tối đa 1 request / 60 giây theo rule `short`
+- Mô tả: Gửi mã OTP reset password qua email.
 
 ### Body
 

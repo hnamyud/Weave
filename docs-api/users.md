@@ -2,26 +2,26 @@
 
 Controller prefix: `/api/v1/users`
 
-Tat ca endpoint deu can Bearer JWT.
+Tất cả endpoint đều cần Bearer JWT.
 
 ## GET /api/v1/users/me
 
 - Policy: `RequireUserPermission(Action.Read)`
-- Mo ta: Lay profile cua user dang dang nhap.
+- Mô tả: Lấy profile của user đang đăng nhập.
 
 ## GET /api/v1/users/:id
 
 - Policy: `RequireUserPermission(Action.Read)`
-- Mo ta: Lay profile cua user theo ID.
+- Mô tả: Lấy profile của user theo ID.
 
 ### Path params
 
-- `id`: UUID cua user
+- `id`: UUID của user
 
 ## PATCH /api/v1/users/me
 
 - Policy: `RequireUserPermission(Action.Update)`
-- Mo ta: Cap nhat profile cua user hien tai.
+- Mô tả: Cập nhật profile của user hiện tại.
 
 ### Body
 
@@ -38,10 +38,10 @@ Tat ca endpoint deu can Bearer JWT.
 ## DELETE /api/v1/users/me
 
 - Policy: `RequireUserPermission(Action.Delete)`
-- Mo ta: Soft-delete tai khoan hien tai.
+- Mô tả: Soft-delete tài khoản hiện tại.
 
-## Loi thuong gap
+## Lỗi thường gặp
 
-- `401 Unauthorized`: thieu hoac sai JWT
-- `403 Forbidden`: khong du policy truy cap
-- `404 Not Found`: user khong ton tai
+- `401 Unauthorized`: thiếu hoặc sai JWT
+- `403 Forbidden`: không đủ policy truy cập
+- `404 Not Found`: user không tồn tại

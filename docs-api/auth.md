@@ -5,7 +5,7 @@ Controller prefix: `/api/v1/auth`
 ## POST /api/v1/auth/login
 
 - Auth: Public
-- Mo ta: Dang nhap bang email va mat khau. Service co the set `refresh_token` cookie va tra access token trong `data`.
+- Mô tả: Đăng nhập bằng email và mật khẩu. Service có thể set `refresh_token` cookie và trả access token trong `data`.
 
 ### Body
 
@@ -32,17 +32,17 @@ Controller prefix: `/api/v1/auth`
 ## POST /api/v1/auth/logout
 
 - Auth: Bearer JWT
-- Mo ta: Dang xuat phien hien tai bang `refresh_token` cookie.
+- Mô tả: Đăng xuất phiên hiện tại bằng `refresh_token` cookie.
 
 ## POST /api/v1/auth/logout-all
 
 - Auth: Bearer JWT
-- Mo ta: Thu hoi cac refresh token khac cua cung user, giu lai thiet bi hien tai neu service cho phep.
+- Mô tả: Thu hồi các refresh token khác của cùng user, giữ lại thiết bị hiện tại nếu service cho phép.
 
 ## POST /api/v1/auth/register
 
 - Auth: Public
-- Mo ta: Dang ky tai khoan local.
+- Mô tả: Đăng ký tài khoản local.
 
 ### Body
 
@@ -58,7 +58,7 @@ Controller prefix: `/api/v1/auth`
 ## POST /api/v1/auth/verify-otp
 
 - Auth: Public
-- Mo ta: Xac minh OTP cho luong reset/change email.
+- Mô tả: Xác minh OTP cho luồng reset/change email.
 
 ### Body
 
@@ -84,7 +84,7 @@ Controller prefix: `/api/v1/auth`
 ## POST /api/v1/auth/reset-password
 
 - Auth: Public
-- Mo ta: Dat lai mat khau bang email + OTP.
+- Mô tả: Đặt lại mật khẩu bằng email + OTP.
 
 ### Body
 
@@ -100,7 +100,7 @@ Controller prefix: `/api/v1/auth`
 
 - Auth: Bearer JWT
 - Policy: `RequireUserPermission(Action.Update)`
-- Mo ta: Doi mat khau cua user hien tai.
+- Mô tả: Đổi mật khẩu của user hiện tại.
 
 ### Body
 
@@ -116,7 +116,7 @@ Controller prefix: `/api/v1/auth`
 
 - Auth: Bearer JWT
 - Policy: `RequireUserPermission(Action.Update)`
-- Mo ta: Doi email cua user hien tai sau khi co OTP.
+- Mô tả: Đổi email của user hiện tại sau khi có OTP.
 
 ### Body
 
@@ -130,25 +130,25 @@ Controller prefix: `/api/v1/auth`
 ## POST /api/v1/auth/refresh
 
 - Auth: Public
-- Mo ta: Tao access token moi tu `refresh_token` cookie.
+- Mô tả: Tạo access token mới từ `refresh_token` cookie.
 
-### Loi thuong gap
+### Lỗi thường gặp
 
-- `401 Unauthorized`: thieu cookie hoac refresh token het han/khong hop le.
+- `401 Unauthorized`: thiếu cookie hoặc refresh token hết hạn/không hợp lệ.
 
 ## GET /api/v1/auth/google/login
 
 - Auth: Public
 - Guard: `GoogleAuthGuard`
-- Mo ta: Redirect trinh duyet sang Google OAuth.
+- Mô tả: Redirect trình duyệt sang Google OAuth.
 
 ## GET /api/v1/auth/google/callback
 
 - Auth: Public
 - Guard: `GoogleAuthGuard`
-- Mo ta: Nhan callback tu Google, dang nhap user va redirect ve frontend.
+- Mô tả: Nhận callback từ Google, đăng nhập user và redirect về frontend.
 
-## Ghi chu
+## Ghi chú
 
-- Validation pipe dang bat `whitelist` va `forbidNonWhitelisted`.
-- Endpoint auth public van co response wrapper neu controller tra JSON thay vi redirect.
+- Validation pipe đang bật `whitelist` và `forbidNonWhitelisted`.
+- Endpoint auth public vẫn có response wrapper nếu controller trả JSON thay vì redirect.

@@ -5,30 +5,30 @@ Controller prefixes:
 - `/api/v1/conversation-members`
 - `/api/v1/conversations/:conversationId/members`
 
-Tat ca endpoint deu can Bearer JWT.
+Tất cả endpoint đều cần Bearer JWT.
 
 ## GET /api/v1/conversation-members/:conversationId
 
 - Guard: `ConversationMemberGuard`
 - Policy: `RequireConversationPermission(Action.Read)`
-- Mo ta: Lay danh sach member cua conversation.
+- Mô tả: Lấy danh sách member của conversation.
 
 ### Query params
 
-- `current`: trang hien tai
-- `pageSize`: so ban ghi moi trang
+- `current`: trang hiện tại
+- `pageSize`: số bản ghi mỗi trang
 
 ## GET /api/v1/conversations/:conversationId/members/mention-search
 
 - Guard: `ConversationMemberGuard`
 - Policy: `RequireConversationPermission(Action.Read)`
-- Mo ta: Tim candidate de mention trong conversation.
+- Mô tả: Tìm candidate để mention trong conversation.
 
 ### Query params
 
-- `q`: tu khoa tim kiem, co the bo trong
+- `q`: từ khóa tìm kiếm, có thể bỏ trống
 
-## Loi thuong gap
+## Lỗi thường gặp
 
-- `403 Forbidden`: user khong du quyen doc conversation
-- `404 Not Found`: conversation khong ton tai
+- `403 Forbidden`: user không đủ quyền đọc conversation
+- `404 Not Found`: conversation không tồn tại

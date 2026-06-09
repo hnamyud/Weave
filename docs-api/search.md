@@ -2,9 +2,9 @@
 
 Controller prefix: `/api/v1/search`
 
-Tai thoi diem doc code, `SearchController` da duoc khai bao nhung chua expose HTTP endpoint nao.
+Tại thời điểm đọc code, `SearchController` đã được khai báo nhưng chưa expose HTTP endpoint nào.
 
-## Hien trang
+## Hiện trạng
 
-- Co controller va service
-- Chua co `@Get`, `@Post`, `@Patch`, `@Delete`
+- Có controller và service
+- Chưa có `@Get`, `@Post`, `@Patch`, `@Delete`

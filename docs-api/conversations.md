@@ -2,13 +2,13 @@
 
 Controller prefix: `/api/v1/conversation`
 
-Tat ca endpoint deu can Bearer JWT.
+Tất cả endpoint đều cần Bearer JWT.
 
 ## POST /api/v1/conversation
 
 - Guard: `WorkspaceMemberGuard`
 - Policy: `RequireWorkspacePermission(Action.Create)`
-- Mo ta: Tao conversation moi trong workspace.
+- Mô tả: Tạo conversation mới trong workspace.
 
 ### Body
 
@@ -23,28 +23,28 @@ Tat ca endpoint deu can Bearer JWT.
 }
 ```
 
-### Ghi chu
+### Ghi chú
 
-- `type` duoc dinh nghia trong enum `ConversationType`.
-- DTO khong danh dau `name` va `description` la bat buoc, nhung service co the ap them rule theo loai conversation.
+- `type` được định nghĩa trong enum `ConversationType`.
+- DTO không đánh dấu `name` và `description` là bắt buộc, nhưng service có thể áp thêm rule theo loại conversation.
 
 ## POST /api/v1/conversation/:conversationId/join
 
 - Guard: `WorkspaceMemberGuard`
 - Policy: `RequireConversationPermission(Action.Join)`
-- Mo ta: Join vao conversation.
+- Mô tả: Join vào conversation.
 
 ## POST /api/v1/conversation/:id/leave
 
 - Guard: `ConversationMemberGuard`
 - Policy: `RequireConversationPermission(Action.Leave)`
-- Mo ta: Roi khoi conversation.
+- Mô tả: Rời khỏi conversation.
 
 ## POST /api/v1/conversation/:conversationId/private-members
 
 - Guard: `ConversationMemberGuard`
 - Policy: `RequireConversationPermission(Action.Add)`
-- Mo ta: Them member vao private channel.
+- Mô tả: Thêm member vào private channel.
 
 ### Body
 
@@ -58,19 +58,19 @@ Tat ca endpoint deu can Bearer JWT.
 
 - Guard: `ConversationMemberGuard`
 - Policy: `RequireConversationPermission(Action.Kick)`
-- Mo ta: Xoa member khoi private channel.
+- Mô tả: Xóa member khỏi private channel.
 
 ## GET /api/v1/conversation/:id
 
 - Guard: `ConversationMemberGuard`
 - Policy: `RequireConversationPermission(Action.Read)`
-- Mo ta: Lay thong tin conversation.
+- Mô tả: Lấy thông tin conversation.
 
 ## PATCH /api/v1/conversation/:id
 
 - Guard: `ConversationMemberGuard`
 - Policy: `RequireConversationPermission(Action.Update)`
-- Mo ta: Cap nhat conversation.
+- Mô tả: Cập nhật conversation.
 
 ### Body
 
@@ -86,21 +86,21 @@ Tat ca endpoint deu can Bearer JWT.
 
 - Guard: `ConversationMemberGuard`
 - Policy: `RequireConversationPermission(Action.Archive)`
-- Mo ta: Archive conversation.
+- Mô tả: Archive conversation.
 
 ## PATCH /api/v1/conversation/:id/unarchive
 
 - Guard: `ConversationMemberGuard`
 - Policy: `RequireConversationPermission(Action.Archive)`
-- Mo ta: Unarchive conversation.
+- Mô tả: Unarchive conversation.
 
 ## DELETE /api/v1/conversation/:id
 
 - Guard: `ConversationMemberGuard`
 - Policy: `RequireConversationPermission(Action.Delete)`
-- Mo ta: Soft-delete conversation.
+- Mô tả: Soft-delete conversation.
 
-## Loi thuong gap
+## Lỗi thường gặp
 
-- `403 Forbidden`: khong du quyen tren conversation/workspace
-- `404 Not Found`: conversation khong ton tai
+- `403 Forbidden`: không đủ quyền trên conversation/workspace
+- `404 Not Found`: conversation không tồn tại

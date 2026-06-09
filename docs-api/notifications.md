@@ -1,27 +1,27 @@
 # Notifications Module
 
-Controller routes khong co prefix controller, nhung tat ca deu nam duoi `/api/v1`.
+Controller routes không có prefix controller, nhưng tất cả đều nằm dưới `/api/v1`.
 
-Tat ca endpoint deu can Bearer JWT.
+Tất cả endpoint đều cần Bearer JWT.
 
 ## GET /api/v1/notifications
 
-- Mo ta: Lay danh sach notification theo cursor/filter.
+- Mô tả: Lấy danh sách notification theo cursor/filter.
 
 ### Query params
 
 - `workspaceId`: UUID, optional
-- `isRead`: chuoi boolean `true` hoac `false`, optional
-- `limit`: so nguyen >= 1, optional
+- `isRead`: chuỗi boolean `true` hoặc `false`, optional
+- `limit`: số nguyên >= 1, optional
 - `cursor`: optional
 
 ## PATCH /api/v1/notifications/:id/read
 
-- Mo ta: Danh dau mot notification la da doc.
+- Mô tả: Đánh dấu một notification là đã đọc.
 
 ## PATCH /api/v1/notifications/read-all
 
-- Mo ta: Danh dau tat ca notification la da doc, co the gioi han theo workspace.
+- Mô tả: Đánh dấu tất cả notification là đã đọc, có thể giới hạn theo workspace.
 
 ### Query params
 
@@ -29,11 +29,11 @@ Tat ca endpoint deu can Bearer JWT.
 
 ## DELETE /api/v1/notifications/:id
 
-- Mo ta: Xoa mot notification.
+- Mô tả: Xóa một notification.
 
 ## DELETE /api/v1/notifications
 
-- Mo ta: Xoa tat ca notification, co the gioi han theo workspace.
+- Mô tả: Xóa tất cả notification, có thể giới hạn theo workspace.
 
 ### Query params
 
@@ -41,19 +41,19 @@ Tat ca endpoint deu can Bearer JWT.
 
 ## GET /api/v1/notification-settings
 
-- Mo ta: Lay notification settings cua user trong workspace.
+- Mô tả: Lấy notification settings của user trong workspace.
 
 ### Query params
 
-- `workspaceId`: UUID, bat buoc
+- `workspaceId`: UUID, bắt buộc
 
 ## PATCH /api/v1/notification-settings
 
-- Mo ta: Cap nhat notification settings cua user trong workspace.
+- Mô tả: Cập nhật notification settings của user trong workspace.
 
 ### Query params
 
-- `workspaceId`: UUID, bat buoc
+- `workspaceId`: UUID, bắt buộc
 
 ### Body
 

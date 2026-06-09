@@ -2,9 +2,9 @@
 
 Controller prefix: `/api/v1/tokens`
 
-Tai thoi diem doc code, `TokensController` da duoc khai bao nhung chua expose HTTP endpoint nao.
+Tại thời điểm đọc code, `TokensController` đã được khai báo nhưng chưa expose HTTP endpoint nào.
 
-## Hien trang
+## Hiện trạng
 
-- Co controller va service
-- Chua co `@Get`, `@Post`, `@Patch`, `@Delete`
+- Có controller và service
+- Chưa có `@Get`, `@Post`, `@Patch`, `@Delete`

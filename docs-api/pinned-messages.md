@@ -1,22 +1,22 @@
 # Pinned Messages Module
 
-Controller routes khong co prefix controller, nhung tat ca deu nam duoi `/api/v1`.
+Controller routes không có prefix controller, nhưng tất cả đều nằm dưới `/api/v1`.
 
-Tat ca endpoint deu can Bearer JWT.
+Tất cả endpoint đều cần Bearer JWT.
 
 ## POST /api/v1/messages/:messageId/pin
 
-- Mo ta: Pin message vao conversation.
+- Mô tả: Pin message vào conversation.
 
 ## DELETE /api/v1/messages/:messageId/pin
 
-- Mo ta: Bo pin message.
+- Mô tả: Bỏ pin message.
 
 ## GET /api/v1/conversations/:conversationId/pinned-messages
 
-- Mo ta: Lay danh sach pinned message theo cursor.
+- Mô tả: Lấy danh sách pinned message theo cursor.
 
 ### Query params
 
-- `limit`: so nguyen >= 1
+- `limit`: số nguyên >= 1
 - `cursor`: optional

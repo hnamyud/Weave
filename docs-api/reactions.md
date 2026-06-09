@@ -2,10 +2,10 @@
 
 Controller prefix: `/api/v1/reactions`
 
-Tai thoi diem doc code, `ReactionsController` da duoc khai bao nhung chua expose HTTP endpoint nao.
+Tại thời điểm đọc code, `ReactionsController` đã được khai báo nhưng chưa expose HTTP endpoint nào.
 
-## Hien trang
+## Hiện trạng
 
-- Co controller va service
-- Chua co `@Get`, `@Post`, `@Patch`, `@Delete`
-- Realtime event type co dinh nghia `reaction:added` va `reaction:removed`, nhung khong thay luong emit trong pham vi code da kiem tra
+- Có controller và service
+- Chưa có `@Get`, `@Post`, `@Patch`, `@Delete`
+- Realtime event type có định nghĩa `reaction:added` và `reaction:removed`, nhưng không thấy luồng emit trong phạm vi code đã kiểm tra

@@ -1,17 +1,17 @@
 # Weave API Documentation
 
-Tai lieu nay mo ta cac REST API va Socket.IO event dang duoc expose trong backend Weave.
+Tài liệu này mô tả các REST API và Socket.IO event đang được expose trong backend Weave.
 
-## Tong quan
+## Tổng quan
 
 - Base REST URL: `http://localhost:8080/api/v1`
 - Swagger UI: `http://localhost:8080/docs`
 - Socket.IO namespace: `/`
-- Hinh thuc xac thuc mac dinh: `Authorization: Bearer <access_token>`
+- Hình thức xác thực mặc định: `Authorization: Bearer <access_token>`
 
 ## Response wrapper
 
-Tat ca HTTP response tu controller deu di qua `TransformInterceptor` va co dang:
+Tất cả HTTP response từ controller đều đi qua `TransformInterceptor` và có dạng:
 
 ```json
 {
@@ -21,19 +21,19 @@ Tat ca HTTP response tu controller deu di qua `TransformInterceptor` va co dang:
 }
 ```
 
-Loi validation, auth, permission va resource not found duoc tra ve boi exception/filter toan cuc.
+Lỗi validation, auth, permission và resource not found được trả về bởi exception/filter toàn cục.
 
 ## Auth
 
-- Endpoint co `@Public()` khong can JWT.
-- Phan lon endpoint can JWT Bearer token.
-- Refresh token duoc dung qua cookie `refresh_token`.
-- Socket.IO co the nhan token qua:
+- Endpoint có `@Public()` không cần JWT.
+- Phần lớn endpoint cần JWT Bearer token.
+- Refresh token được dùng qua cookie `refresh_token`.
+- Socket.IO có thể nhận token qua:
   - `handshake.auth.token`
   - header `Authorization: Bearer <token>`
   - query `token`
 
-## Tai lieu theo module
+## Tài liệu theo module
 
 - [auth.md](/D:/Weave/docs-api/auth.md)
 - [users.md](/D:/Weave/docs-api/users.md)

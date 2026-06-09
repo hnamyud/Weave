@@ -1,12 +1,12 @@
 # Messages Module
 
-Controller routes khong co prefix controller, nhung tat ca deu nam duoi `/api/v1`.
+Controller routes không có prefix controller, nhưng tất cả đều nằm dưới `/api/v1`.
 
-Tat ca endpoint deu can Bearer JWT.
+Tất cả endpoint đều cần Bearer JWT.
 
 ## POST /api/v1/messages
 
-- Mo ta: Tao message moi trong conversation.
+- Mô tả: Tạo message mới trong conversation.
 
 ### Body
 
@@ -29,28 +29,28 @@ Tat ca endpoint deu can Bearer JWT.
 }
 ```
 
-### Ghi chu
+### Ghi chú
 
-- `content` la optional.
-- `attachments` toi da 4 phan tu.
-- `mentionedUserIds` toi da 20 UUID.
+- `content` là optional.
+- `attachments` tối đa 4 phần tử.
+- `mentionedUserIds` tối đa 20 UUID.
 
 ## GET /api/v1/conversations/:conversationId/messages
 
-- Mo ta: Lay danh sach message trong conversation theo cursor.
+- Mô tả: Lấy danh sách message trong conversation theo cursor.
 
 ### Query params
 
-- `limit`: so luong ban ghi, so nguyen >= 1
-- `cursor`: con tro phan trang
+- `limit`: số lượng bản ghi, số nguyên >= 1
+- `cursor`: con trỏ phân trang
 
 ## GET /api/v1/messages/:messageId
 
-- Mo ta: Lay chi tiet mot message.
+- Mô tả: Lấy chi tiết một message.
 
 ## PATCH /api/v1/messages/:messageId
 
-- Mo ta: Sua noi dung message.
+- Mô tả: Sửa nội dung message.
 
 ### Body
 
@@ -65,11 +65,11 @@ Tat ca endpoint deu can Bearer JWT.
 
 ## DELETE /api/v1/messages/:messageId
 
-- Mo ta: Xoa mem message.
+- Mô tả: Xóa mềm message.
 
 ## POST /api/v1/messages/:messageId/replies
 
-- Mo ta: Tao thread reply cho message.
+- Mô tả: Tạo thread reply cho message.
 
 ### Body
 
@@ -89,25 +89,25 @@ Tat ca endpoint deu can Bearer JWT.
 }
 ```
 
-### Ghi chu
+### Ghi chú
 
-- `attachments` trong reply toi da 5 phan tu.
+- `attachments` trong reply tối đa 5 phần tử.
 
 ## GET /api/v1/messages/:messageId/replies
 
-- Mo ta: Lay danh sach reply cua mot message theo cursor.
+- Mô tả: Lấy danh sách reply của một message theo cursor.
 
 ### Query params
 
-- `limit`: so luong ban ghi, so nguyen >= 1
-- `cursor`: con tro phan trang
+- `limit`: số lượng bản ghi, số nguyên >= 1
+- `cursor`: con trỏ phân trang
 
 ## DELETE /api/v1/attachments/:id
 
-- Mo ta: Xoa attachment khoi message neu user duoc phep.
+- Mô tả: Xóa attachment khỏi message nếu user được phép.
 
-## Loi thuong gap
+## Lỗi thường gặp
 
-- `400 Bad Request`: body sai schema, file metadata khong hop le
-- `403 Forbidden`: khong phai member conversation hoac khong du quyen sua/xoa
-- `404 Not Found`: message hoac attachment khong ton tai
+- `400 Bad Request`: body sai schema, file metadata không hợp lệ
+- `403 Forbidden`: không phải member conversation hoặc không đủ quyền sửa/xóa
+- `404 Not Found`: message hoặc attachment không tồn tại

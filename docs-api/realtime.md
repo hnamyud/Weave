@@ -2,9 +2,9 @@
 
 Gateway: Socket.IO namespace `/`
 
-## Ket noi va auth
+## Kết nối và auth
 
-Client co the ket noi nhu sau:
+Client có thể kết nối như sau:
 
 ```javascript
 import { io } from "socket.io-client";
@@ -16,44 +16,44 @@ const socket = io("http://localhost:8080", {
 });
 ```
 
-Token cung co the di qua header `Authorization: Bearer <token>` hoac query `token`, nhung `auth.token` la cach ro rang nhat.
+Token cũng có thể đi qua header `Authorization: Bearer <token>` hoặc query `token`, nhưng `auth.token` là cách rõ ràng nhất.
 
 ## Rooms
 
-- `workspace:{workspaceId}`: tat ca member cua workspace
-- `conversation:{conversationId}`: tat ca member cua conversation
-- `user:{userId}`: kenh rieng cho notification
+- `workspace:{workspaceId}`: tất cả member của workspace
+- `conversation:{conversationId}`: tất cả member của conversation
+- `user:{userId}`: kênh riêng cho notification
 
 ## Client -> Server events
 
 ### `workspace:join`
 
 - Payload: `workspaceId: string`
-- Hanh vi: xac thuc user la member cua workspace, join room workspace va room user.
-- Loi: `Not a workspace member`
+- Hành vi: xác thực user là member của workspace, join room workspace và room user.
+- Lỗi: `Not a workspace member`
 
 ### `conversation:join`
 
 - Payload: `conversationId: string`
-- Hanh vi: yeu cau client da join workspace truoc, sau do verify membership conversation roi join room conversation.
-- Loi:
+- Hành vi: yêu cầu client đã join workspace trước, sau đó verify membership conversation rồi join room conversation.
+- Lỗi:
   - `Join a workspace before joining conversations`
   - `Not a conversation member`
 
 ### `conversation:leave`
 
 - Payload: `conversationId: string`
-- Hanh vi: leave room conversation.
+- Hành vi: leave room conversation.
 
 ### `typing:start`
 
 - Payload: `conversationId: string`
-- Hanh vi: verify membership va broadcast event `typing` cho cac socket khac trong conversation.
+- Hành vi: verify membership và broadcast event `typing` cho các socket khác trong conversation.
 
 ### `typing:stop`
 
 - Payload: `conversationId: string`
-- Hanh vi: hien tai dung chung luong broadcast voi `typing:start`.
+- Hành vi: hiện tại dùng chung luồng broadcast với `typing:start`.
 
 ## Server -> Client events
 
@@ -77,7 +77,7 @@ Token cung co the di qua header `Authorization: Bearer <token>` hoac query `toke
 
 ### `message:updated`
 
-- Payload co cung shape voi `message:new`.
+- Payload có cùng shape với `message:new`.
 
 ### `message:deleted`
 
@@ -115,7 +115,7 @@ Token cung co the di qua header `Authorization: Bearer <token>` hoac query `toke
 
 ### `pinned:removed`
 
-- Payload co cung shape voi `pinned:added`.
+- Payload có cùng shape với `pinned:added`.
 
 ### `typing`
 
@@ -127,7 +127,7 @@ Token cung co the di qua header `Authorization: Bearer <token>` hoac query `toke
 }
 ```
 
-## Event duoc dinh nghia nhung chua thay emit trong gateway/service nay
+## Event được định nghĩa nhưng chưa thấy emit trong gateway/service này
 
 - `reaction:added`
 - `reaction:removed`
@@ -137,4 +137,4 @@ Token cung co the di qua header `Authorization: Bearer <token>` hoac query `toke
 - `member:left`
 - `user:presence`
 
-Nhung event tren da co type trong `socket-events.interface.ts`, nhung trong code duoc doc cho lan tai lieu nay chua thay luong emit thuc te tu `RealtimeGateway` hoac `RealtimeService`.
+Những event trên đã có type trong `socket-events.interface.ts`, nhưng trong code được đọc cho lần tài liệu này chưa thấy luồng emit thực tế từ `RealtimeGateway` hoặc `RealtimeService`.
