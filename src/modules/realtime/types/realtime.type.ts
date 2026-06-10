@@ -31,3 +31,11 @@ export type RealtimePinnedMessageInput = {
   messageId: string;
   pinnedBy: string;
 };
+
+export type RealtimeReactionInput = {
+  conversationId: string;
+  messageId: string;
+  userId: string;
+  emoji: string;
+  user: SocketUser;
+};

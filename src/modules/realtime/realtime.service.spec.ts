@@ -113,4 +113,26 @@ describe('RealtimeService', () => {
     expect(emit).toHaveBeenCalledWith(EVENTS.PINNED_MESSAGE_ADDED, payload);
     expect(emit).toHaveBeenCalledWith(EVENTS.PINNED_MESSAGE_REMOVED, payload);
   });
+
+  it('emits reaction changes to the conversation room', () => {
+    const payload = {
+      conversationId: 'conversation-id',
+      messageId: 'message-id',
+      userId: 'user-id',
+      emoji: '👍',
+      user: {
+        id: 'user-id',
+        username: 'alice',
+        displayName: 'Alice',
+        avatarUrl: null,
+      },
+    };
+
+    service.emitReactionAdded(payload);
+    service.emitReactionRemoved(payload);
+
+    expect(to).toHaveBeenCalledWith(ROOMS.conversation('conversation-id'));
+    expect(emit).toHaveBeenCalledWith(EVENTS.REACTION_ADDED, payload);
+    expect(emit).toHaveBeenCalledWith(EVENTS.REACTION_REMOVED, payload);
+  });
 });
