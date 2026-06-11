@@ -41,6 +41,7 @@ import { ConversationService } from './conversation.service';
 
 type AuthenticatedUser = {
   id: string;
+  email: string;
 };
 
 function getPolicyMetadata(
@@ -109,7 +110,7 @@ describe('ConversationController metadata', () => {
       workspaceId: 'workspace-id',
       type: 'CHANNEL',
     };
-    const user: AuthenticatedUser = { id: 'user-id' };
+    const user: AuthenticatedUser = { id: 'user-id', email: 'user@example.com' };
 
     await controller.createConversation(dto, user);
 

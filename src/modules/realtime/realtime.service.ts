@@ -9,6 +9,10 @@ import type {
   RealtimeNotificationInput,
   RealtimePinnedMessageInput,
   RealtimeReactionInput,
+  ConversationUpdatedInput,
+  ConversationDeletedInput,
+  MemberJoinedInput,
+  MemberLeftInput,
 } from './types/realtime.type';
 
 @Injectable()
@@ -69,6 +73,47 @@ export class RealtimeService {
       .getServer()
       .to(ROOMS.conversation(reaction.conversationId))
       .emit(EVENTS.REACTION_REMOVED, reaction);
+  }
+
+  emitConversationUpdated(payload: ConversationUpdatedInput): void {
+    this.gateway
+      .getServer()
+      .to(ROOMS.workspace(payload.workspaceId))
+      .emit(EVENTS.CONVERSATION_UPDATED, {
+        id: payload.conversationId,
+        workspaceId: payload.workspaceId,
+        name: payload.name,
+        type: payload.type,
+        isArchived: false,
+        isDeleted: false,
+      });
+  }
+
+  emitConversationDeleted(payload: ConversationDeletedInput): void {
+    this.gateway
+      .getServer()
+      .to(ROOMS.workspace(payload.workspaceId))
+      .emit(EVENTS.CONVERSATION_DELETED, { id: payload.conversationId });
+  }
+
+  emitMemberJoined(payload: MemberJoinedInput): void {
+    this.gateway
+      .getServer()
+      .to(ROOMS.conversation(payload.conversationId))
+      .emit(EVENTS.MEMBER_JOINED, {
+        conversationId: payload.conversationId,
+        user: payload.user,
+      });
+  }
+
+  emitMemberLeft(payload: MemberLeftInput): void {
+    this.gateway
+      .getServer()
+      .to(ROOMS.conversation(payload.conversationId))
+      .emit(EVENTS.MEMBER_LEFT, {
+        conversationId: payload.conversationId,
+        user: payload.user,
+      });
   }
 
   private mapMessage(message: RealtimeMessageInput): SocketMessage {

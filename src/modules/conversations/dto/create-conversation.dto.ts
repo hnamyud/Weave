@@ -1,4 +1,4 @@
-import { ConversationType } from 'src/shared/enums/conversation-type.enum';
+import { ConversationType } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 

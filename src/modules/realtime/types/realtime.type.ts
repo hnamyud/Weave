@@ -39,3 +39,29 @@ export type RealtimeReactionInput = {
   emoji: string;
   user: SocketUser;
 };
+
+export type ConversationUpdatedInput = {
+  conversationId: string;
+  workspaceId: string;
+  name: string | null;
+  type: string;
+  isPrivate: boolean;
+};
+
+export type ConversationDeletedInput = {
+  conversationId: string;
+  workspaceId: string;
+};
+
+export type MemberJoinedInput = {
+  conversationId: string;
+  workspaceId: string;
+  user: SocketUser;
+};
+
+export type MemberLeftInput = {
+  conversationId: string;
+  workspaceId: string;
+  user: SocketUser;
+};
+

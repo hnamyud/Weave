@@ -6,6 +6,7 @@ import {
   Get,
   Patch,
   Delete,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ConversationService } from './conversation.service';
@@ -25,10 +26,22 @@ import {
   RequireWorkspacePermission,
 } from '../../common/decorators/policy.decorator';
 import { Action } from '../../shared/enums/action.enum';
+import { ListConversationsQueryDto } from './dto/list-conversations-query.dto';
 
 @Controller('conversation')
 export class ConversationController {
   constructor(private readonly conversationService: ConversationService) {}
+
+  @Get()
+  @UseGuards(WorkspaceMemberGuard)
+  @ApiBearerAuth('access-token')
+  @ResponseMessage('List conversations successfully!')
+  async listUserConversations(
+    @GetUser() user: UserInterface,
+    @Query() query: ListConversationsQueryDto,
+  ) {
+    return this.conversationService.listUserConversations(user.id, query);
+  }
 
   @Post()
   @UseGuards(WorkspaceMemberGuard)

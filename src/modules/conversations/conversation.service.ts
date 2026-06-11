@@ -6,6 +6,15 @@ import { v7 as uuidv7 } from 'uuid';
 import { ConversationRole } from 'src/shared/enums/conversation-role.enum';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { ConversationMembersService } from '../conversation_members/conversation_members.service';
+import {
+  ConversationListItem,
+  conversationListSelect,
+  ConversationResponse,
+  conversationSelect,
+  ConversationWithCount,
+} from './types/conversation.type';
+import { ListConversationsQueryDto } from './dto/list-conversations-query.dto';
+import { RealtimeService } from '../realtime/realtime.service';
 
 type ConversationContextOptions = {
   conversationWhere?: {
@@ -19,7 +28,8 @@ export class ConversationService {
   constructor(
     private prisma: PrismaService,
     private conversationMembersService: ConversationMembersService,
-  ) {}
+    private realtimeService: RealtimeService,
+  ) { }
 
   async createConversation(dto: CreateConversationDto, userId: string) {
     await this.ensureActiveWorkspaceMember(dto.workspaceId, userId);
@@ -62,7 +72,7 @@ export class ConversationService {
         'Conversation not found or user is not a member of this conversation',
     });
 
-    return await this.prisma.conversation.update({
+    const updated = await this.prisma.conversation.update({
       where: { id: conversationId },
       data: {
         name: dto.name,
@@ -71,6 +81,16 @@ export class ConversationService {
         updatedAt: new Date(),
       },
     });
+
+    this.realtimeService.emitConversationUpdated({
+      conversationId,
+      workspaceId: updated.workspaceId,
+      name: updated.name,
+      type: updated.type,
+      isPrivate: updated.isPrivate,
+    });
+
+    return updated;
   }
 
   async softDeleteConversation(conversationId: string, userId: string) {
@@ -79,13 +99,20 @@ export class ConversationService {
         'Conversation not found or user is not a member of this conversation',
     });
 
-    return await this.prisma.conversation.update({
+    const deleted = await this.prisma.conversation.update({
       where: { id: conversationId },
       data: {
         isDeleted: true,
         deletedAt: new Date(),
       },
     });
+
+    this.realtimeService.emitConversationDeleted({
+      conversationId,
+      workspaceId: deleted.workspaceId,
+    });
+
+    return deleted;
   }
 
   async archiveConversation(conversationId: string, userId: string) {
@@ -124,7 +151,10 @@ export class ConversationService {
     });
   }
 
-  async getConversationById(conversationId: string, userId: string) {
+  async getConversationById(
+    conversationId: string,
+    userId: string,
+  ): Promise<ConversationResponse> {
     await this.getConversationMemberContext(conversationId, userId, {
       notFoundMessage:
         'Conversation not found or user is not a member of this conversation',
@@ -135,30 +165,52 @@ export class ConversationService {
         id: conversationId,
         isDeleted: false,
       },
-      select: {
-        id: true,
-        name: true,
-        type: true,
-        isPrivate: true,
-        createdAt: true,
-
-        _count: {
-          select: {
-            members: {
-              where: {
-                leftAt: null,
-              },
-            },
-          },
-        },
-      },
+      select: conversationSelect,
     });
 
     if (!conversation) {
       throw new BadRequestException('Conversation not found');
     }
 
-    return conversation;
+    return this.mapConversation(conversation);
+  }
+
+  async listUserConversations(
+    userId: string,
+    query: ListConversationsQueryDto,
+  ): Promise<ConversationListItem[]> {
+    await this.ensureActiveWorkspaceMember(query.workspaceId, userId);
+
+    const members = await this.prisma.conversationMember.findMany({
+      where: {
+        userId,
+        leftAt: null,
+        conversation: {
+          workspaceId: query.workspaceId,
+          isDeleted: false,
+          ...(query.type !== undefined ? { type: query.type } : {}),
+          ...(query.isArchived !== undefined ? { isArchived: query.isArchived } : {}),
+          ...(query.isPrivate !== undefined ? { isPrivate: query.isPrivate } : {}),
+        },
+      },
+      select: {
+        role: true,
+        lastReadAt: true,
+        conversation: {
+          select: conversationListSelect,
+        },
+      },
+      orderBy: { conversation: { createdAt: 'desc' } },
+    });
+
+    return members.map((m) => ({
+      id: m.conversation.id,
+      name: m.conversation.name,
+      type: m.conversation.type,
+      isPrivate: m.conversation.isPrivate,
+      myRole: m.role,
+      lastReadAt: m.lastReadAt,
+    }));
   }
 
   private async getConversationMemberContext(
@@ -214,10 +266,25 @@ export class ConversationService {
       throw new BadRequestException('Channel not found');
     }
 
-    return await this.conversationMembersService.addConversationMember(
+    const result = await this.conversationMembersService.addConversationMember(
       conversationId,
       userId,
     );
+
+    const joinedUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, displayName: true, avatarUrl: true, username: true },
+    });
+
+    if (joinedUser) {
+      this.realtimeService.emitMemberJoined({
+        conversationId,
+        workspaceId: channel.workspaceId,
+        user: joinedUser,
+      });
+    }
+
+    return result;
   }
 
   async leaveChannel(conversationId: string, userId: string) {
@@ -238,10 +305,25 @@ export class ConversationService {
       throw new BadRequestException('Cannot leave a DM conversation');
     }
 
-    return await this.conversationMembersService.removeConversationMember(
+    const result = await this.conversationMembersService.removeConversationMember(
       conversationId,
       userId,
     );
+
+    const leftUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, displayName: true, avatarUrl: true, username: true },
+    });
+
+    if (leftUser) {
+      this.realtimeService.emitMemberLeft({
+        conversationId,
+        workspaceId: channel.workspaceId,
+        user: leftUser,
+      });
+    }
+
+    return result;
   }
 
   // Private channel - only added by admin, no self join/leave
@@ -312,5 +394,18 @@ export class ConversationService {
         'User is not an active member of this workspace',
       );
     }
+  }
+
+  private mapConversation(
+    conversation: ConversationWithCount,
+  ): ConversationResponse {
+    return {
+      id: conversation.id,
+      name: conversation.name,
+      type: conversation.type,
+      isPrivate: conversation.isPrivate,
+      createdAt: conversation.createdAt,
+      memberCount: conversation._count.members,
+    };
   }
 }
