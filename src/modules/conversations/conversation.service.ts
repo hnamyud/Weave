@@ -88,6 +88,7 @@ export class ConversationService {
       name: updated.name,
       type: updated.type,
       isPrivate: updated.isPrivate,
+      isArchived: updated.isArchived,
     });
 
     return updated;
@@ -124,13 +125,24 @@ export class ConversationService {
         'Conversation not found, already archived, or user is not a member of this conversation',
     });
 
-    return await this.prisma.conversation.update({
+    const updated = await this.prisma.conversation.update({
       where: { id: conversationId },
       data: {
         isArchived: true,
         updatedAt: new Date(),
       },
     });
+
+    this.realtimeService.emitConversationUpdated({
+      conversationId,
+      workspaceId: updated.workspaceId,
+      name: updated.name,
+      type: updated.type,
+      isPrivate: updated.isPrivate,
+      isArchived: true,
+    });
+
+    return updated;
   }
 
   async unarchiveConversation(conversationId: string, userId: string) {
@@ -142,13 +154,24 @@ export class ConversationService {
         'Conversation not found, not archived, or user is not a member of this conversation',
     });
 
-    return await this.prisma.conversation.update({
+    const updated = await this.prisma.conversation.update({
       where: { id: conversationId },
       data: {
         isArchived: false,
         updatedAt: new Date(),
       },
     });
+
+    this.realtimeService.emitConversationUpdated({
+      conversationId,
+      workspaceId: updated.workspaceId,
+      name: updated.name,
+      type: updated.type,
+      isPrivate: updated.isPrivate,
+      isArchived: false,
+    });
+
+    return updated;
   }
 
   async getConversationById(

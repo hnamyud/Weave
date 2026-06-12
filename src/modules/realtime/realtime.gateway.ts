@@ -56,6 +56,8 @@ export class RealtimeGateway
   server: TypedSocketServer;
 
   private readonly logger = new Logger(RealtimeGateway.name);
+  // Reserved for presence feature: tracks active socket IDs per user.
+  // Will be used to emit USER_PRESENCE events on connect/disconnect.
   private readonly userSockets = new Map<string, Set<string>>();
 
   constructor(
@@ -63,7 +65,7 @@ export class RealtimeGateway
     private readonly configService: ConfigService,
   ) {}
 
-  afterInit(server: TypedSocketServer): void {
+  afterInit(): void {
     const origin = this.configService.get<string>('FE_DOMAIN');
 
     if (!origin) {
@@ -71,11 +73,6 @@ export class RealtimeGateway
         'FE_DOMAIN is not set — WebSocket CORS is open to all origins',
       );
     }
-
-    server.engine.opts.cors = {
-      origin: origin ?? '*',
-      credentials: true,
-    };
   }
 
   handleConnection(client: TypedSocket): void {

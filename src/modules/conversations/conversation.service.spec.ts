@@ -41,6 +41,7 @@ jest.mock(
 
 import { ConversationService } from './conversation.service';
 import { ConversationMembersService } from '../conversation_members/conversation_members.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { ConversationType } from '../../shared/enums/conversation-type.enum';
 import { ConversationRole } from '../../shared/enums/conversation-role.enum';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -61,8 +62,17 @@ describe('ConversationService', () => {
       findFirst: jest.fn<(args: any) => Promise<any>>(),
       findMany: jest.fn<(args: any) => Promise<any[]>>(),
     },
+    user: {
+      findUnique: jest.fn<(args: any) => Promise<any>>(),
+    },
     $transaction:
       jest.fn<(callback: (tx: any) => Promise<any>) => Promise<any>>(),
+  };
+
+  const realtimeService = {
+    emitConversationUpdated: jest.fn<(payload: any) => void>(),
+    emitMemberJoined: jest.fn<(payload: any) => void>(),
+    emitMemberLeft: jest.fn<(payload: any) => void>(),
   };
 
   let service: ConversationService;
@@ -79,6 +89,7 @@ describe('ConversationService', () => {
     service = new ConversationService(
       prisma as unknown as PrismaService,
       conversationMembersService as unknown as ConversationMembersService,
+      realtimeService as unknown as RealtimeService,
     );
   });
 
@@ -171,6 +182,10 @@ describe('ConversationService', () => {
     });
     prisma.conversation.update.mockResolvedValue({
       id: 'conversation-id',
+      workspaceId: 'workspace-id',
+      name: 'general',
+      type: 'CHANNEL',
+      isPrivate: false,
       isArchived: true,
     });
 
@@ -211,7 +226,15 @@ describe('ConversationService', () => {
         updatedAt: expect.any(Date),
       },
     });
-    expect(result).toEqual({
+    expect(realtimeService.emitConversationUpdated).toHaveBeenCalledWith({
+      conversationId: 'conversation-id',
+      workspaceId: 'workspace-id',
+      name: 'general',
+      type: 'CHANNEL',
+      isPrivate: false,
+      isArchived: true,
+    });
+    expect(result).toMatchObject({
       id: 'conversation-id',
       isArchived: true,
     });
@@ -220,11 +243,18 @@ describe('ConversationService', () => {
   it('joins only public active channel conversations', async () => {
     prisma.conversation.findFirst.mockResolvedValue({
       id: 'conversation-id',
+      workspaceId: 'workspace-id',
       type: ConversationType.Channel,
       isPrivate: false,
     });
     conversationMembersService.addConversationMember.mockResolvedValue({
       id: 'conversation-member-id',
+    });
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-id',
+      displayName: 'Alice',
+      avatarUrl: null,
+      username: 'alice',
     });
 
     await service.joinChannel('conversation-id', 'user-id');
@@ -241,6 +271,16 @@ describe('ConversationService', () => {
     expect(
       conversationMembersService.addConversationMember,
     ).toHaveBeenCalledWith('conversation-id', 'user-id');
+    expect(realtimeService.emitMemberJoined).toHaveBeenCalledWith({
+      conversationId: 'conversation-id',
+      workspaceId: 'workspace-id',
+      user: {
+        id: 'user-id',
+        displayName: 'Alice',
+        avatarUrl: null,
+        username: 'alice',
+      },
+    });
   });
 
   it('adds a member to an existing private channel', async () => {

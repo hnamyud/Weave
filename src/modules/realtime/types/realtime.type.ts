@@ -46,6 +46,7 @@ export type ConversationUpdatedInput = {
   name: string | null;
   type: string;
   isPrivate: boolean;
+  isArchived: boolean;
 };
 
 export type ConversationDeletedInput = {

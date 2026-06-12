@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { EVENTS } from '../../shared/constants/socket-event.constant';
 import { ROOMS } from '../../shared/constants/socket-room.constant';
 import { SocketMessage } from '../../shared/interfaces/socket-message.interface';
 import { SocketNotification } from '../../shared/interfaces/socket-notification.interface';
-import { RealtimeGateway } from './realtime.gateway';
+import { RealtimeGateway, TypedSocketServer } from './realtime.gateway';
 import type {
   RealtimeMessageInput,
   RealtimeNotificationInput,
@@ -17,88 +17,112 @@ import type {
 
 @Injectable()
 export class RealtimeService {
+  private readonly logger = new Logger(RealtimeService.name);
+
   constructor(private readonly gateway: RealtimeGateway) {}
 
+  private getReadyServer(): TypedSocketServer | null {
+    const server = this.gateway.getServer();
+
+    if (!server) {
+      this.logger.warn('WebSocket server is not ready — skipping emit');
+      return null;
+    }
+
+    return server;
+  }
+
   emitMessageCreated(message: RealtimeMessageInput): void {
-    this.gateway
-      .getServer()
+    const server = this.getReadyServer();
+    if (!server) return;
+    server
       .to(ROOMS.conversation(message.conversationId))
       .emit(EVENTS.MESSAGE_NEW, this.mapMessage(message));
   }
 
   emitMessageUpdated(message: RealtimeMessageInput): void {
-    this.gateway
-      .getServer()
+    const server = this.getReadyServer();
+    if (!server) return;
+    server
       .to(ROOMS.conversation(message.conversationId))
       .emit(EVENTS.MESSAGE_UPDATED, this.mapMessage(message));
   }
 
   emitMessageDeleted(payload: { id: string; conversationId: string }): void {
-    this.gateway
-      .getServer()
+    const server = this.getReadyServer();
+    if (!server) return;
+    server
       .to(ROOMS.conversation(payload.conversationId))
       .emit(EVENTS.MESSAGE_DELETED, payload);
   }
 
   emitNotificationCreated(notification: RealtimeNotificationInput): void {
-    this.gateway
-      .getServer()
+    const server = this.getReadyServer();
+    if (!server) return;
+    server
       .to(ROOMS.user(notification.userId))
       .emit(EVENTS.NOTIFICATION_NEW, this.mapNotification(notification));
   }
 
   emitPinnedMessageAdded(pinnedMessage: RealtimePinnedMessageInput): void {
-    this.gateway
-      .getServer()
+    const server = this.getReadyServer();
+    if (!server) return;
+    server
       .to(ROOMS.conversation(pinnedMessage.conversationId))
       .emit(EVENTS.PINNED_MESSAGE_ADDED, pinnedMessage);
   }
 
   emitPinnedMessageRemoved(pinnedMessage: RealtimePinnedMessageInput): void {
-    this.gateway
-      .getServer()
+    const server = this.getReadyServer();
+    if (!server) return;
+    server
       .to(ROOMS.conversation(pinnedMessage.conversationId))
       .emit(EVENTS.PINNED_MESSAGE_REMOVED, pinnedMessage);
   }
 
   emitReactionAdded(reaction: RealtimeReactionInput): void {
-    this.gateway
-      .getServer()
+    const server = this.getReadyServer();
+    if (!server) return;
+    server
       .to(ROOMS.conversation(reaction.conversationId))
       .emit(EVENTS.REACTION_ADDED, reaction);
   }
 
   emitReactionRemoved(reaction: RealtimeReactionInput): void {
-    this.gateway
-      .getServer()
+    const server = this.getReadyServer();
+    if (!server) return;
+    server
       .to(ROOMS.conversation(reaction.conversationId))
       .emit(EVENTS.REACTION_REMOVED, reaction);
   }
 
   emitConversationUpdated(payload: ConversationUpdatedInput): void {
-    this.gateway
-      .getServer()
+    const server = this.getReadyServer();
+    if (!server) return;
+    server
       .to(ROOMS.workspace(payload.workspaceId))
       .emit(EVENTS.CONVERSATION_UPDATED, {
         id: payload.conversationId,
         workspaceId: payload.workspaceId,
         name: payload.name,
         type: payload.type,
-        isArchived: false,
+        isArchived: payload.isArchived,
         isDeleted: false,
       });
   }
 
   emitConversationDeleted(payload: ConversationDeletedInput): void {
-    this.gateway
-      .getServer()
+    const server = this.getReadyServer();
+    if (!server) return;
+    server
       .to(ROOMS.workspace(payload.workspaceId))
       .emit(EVENTS.CONVERSATION_DELETED, { id: payload.conversationId });
   }
 
   emitMemberJoined(payload: MemberJoinedInput): void {
-    this.gateway
-      .getServer()
+    const server = this.getReadyServer();
+    if (!server) return;
+    server
       .to(ROOMS.conversation(payload.conversationId))
       .emit(EVENTS.MEMBER_JOINED, {
         conversationId: payload.conversationId,
@@ -107,8 +131,9 @@ export class RealtimeService {
   }
 
   emitMemberLeft(payload: MemberLeftInput): void {
-    this.gateway
-      .getServer()
+    const server = this.getReadyServer();
+    if (!server) return;
+    server
       .to(ROOMS.conversation(payload.conversationId))
       .emit(EVENTS.MEMBER_LEFT, {
         conversationId: payload.conversationId,

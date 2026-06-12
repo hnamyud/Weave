@@ -1,5 +1,6 @@
 import { WsException } from '@nestjs/websockets';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { EVENTS } from '../../shared/constants/socket-event.constant';
 import { ROOMS } from '../../shared/constants/socket-room.constant';
@@ -52,22 +53,30 @@ describe('RealtimeGateway', () => {
     },
   };
 
+  const configService = {
+    get: jest.fn<(key: string) => string | undefined>(() => 'http://localhost:3000'),
+  };
+
   let gateway: RealtimeGateway;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    gateway = new RealtimeGateway(prisma as unknown as PrismaService);
+    gateway = new RealtimeGateway(
+      prisma as unknown as PrismaService,
+      configService as unknown as ConfigService,
+    );
   });
 
   it('joins workspace and user rooms for active workspace members', async () => {
     const { client, join } = createSocket();
     prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'member-id' });
 
-    await gateway.handleJoinWorkspace(client, 'workspace-id');
+    const ack = await gateway.handleJoinWorkspace(client, 'workspace-id');
 
     expect(client.data.workspaceId).toBe('workspace-id');
     expect(join).toHaveBeenCalledWith(ROOMS.workspace('workspace-id'));
     expect(join).toHaveBeenCalledWith(ROOMS.user('user-id'));
+    expect(ack).toEqual({ joined: true, roomId: ROOMS.workspace('workspace-id') });
   });
 
   it('rejects workspace join for non-members', async () => {
@@ -91,9 +100,10 @@ describe('RealtimeGateway', () => {
       },
     });
 
-    await gateway.handleJoinConversation(client, 'conversation-id');
+    const ack = await gateway.handleJoinConversation(client, 'conversation-id');
 
     expect(join).toHaveBeenCalledWith(ROOMS.conversation('conversation-id'));
+    expect(ack).toEqual({ joined: true, roomId: ROOMS.conversation('conversation-id') });
   });
 
   it('rejects conversation join before workspace join or without membership', async () => {
