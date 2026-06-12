@@ -60,6 +60,16 @@ export function RequireWorkspacePermission(action: Action) {
   );
 }
 
+export function RequireWorkspaceInvitePermission(action: Action) {
+  return CheckPolicies(
+    createPolicyHandler(
+      action,
+      'WorkspaceInvite',
+      'You do not have permission to perform this action on workspace invites',
+    ),
+  );
+}
+
 export function RequireConversationPermission(action: Action) {
   return CheckPolicies(
     createPolicyHandler(

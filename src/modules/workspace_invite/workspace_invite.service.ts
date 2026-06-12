@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { v7 as uuidv7 } from 'uuid';
 import { WorkspaceInviteType, WorkspaceRole } from '@prisma/client';
@@ -372,6 +376,9 @@ export class WorkspaceInviteService {
           email,
         },
         leftAt: null,
+        workspace: {
+          isDeleted: false,
+        },
       },
     });
 
@@ -451,7 +458,7 @@ export class WorkspaceInviteService {
     const value = Number(this.configService.get('INVITE_EXPIRES_IN_DAYS'));
 
     if (!Number.isFinite(value) || value <= 0) {
-      throw new BadRequestException(
+      throw new InternalServerErrorException(
         'INVITE_EXPIRES_IN_DAYS must be a positive number',
       );
     }
@@ -463,7 +470,7 @@ export class WorkspaceInviteService {
     const url = this.configService.get<string>('URL_INVITE');
 
     if (!url) {
-      throw new BadRequestException('URL_INVITE is required');
+      throw new InternalServerErrorException('URL_INVITE is required');
     }
 
     return url;

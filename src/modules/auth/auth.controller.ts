@@ -26,6 +26,7 @@ import { ResetPasswordDto, VerifyOtpDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ChangeEmailDto } from './dto/change-email.dto';
 import { RequireUserPermission } from '../../common/decorators/policy.decorator';
+import { PoliciesGuard } from '../../common/guards/policy.guard';
 import { Action } from '../../shared/enums/action.enum';
 
 type CookieRequest = Omit<Request, 'cookies'> & {
@@ -132,6 +133,7 @@ export class AuthController {
   }
 
   @Post('/change-password')
+  @UseGuards(PoliciesGuard)
   @RequireUserPermission(Action.Update)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Change password successfully!')
@@ -144,6 +146,7 @@ export class AuthController {
   }
 
   @Post('/change-email')
+  @UseGuards(PoliciesGuard)
   @RequireUserPermission(Action.Update)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Change email successfully!')

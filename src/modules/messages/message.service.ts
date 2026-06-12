@@ -103,7 +103,9 @@ export class MessageService {
     const message = await this.ensureWritableMessage(messageId, userId);
 
     if (message.conversation.isArchived) {
-      throw new BadRequestException('Cannot edit a message in an archived conversation');
+      throw new BadRequestException(
+        'Cannot edit a message in an archived conversation',
+      );
     }
 
     const content = dto.content.trim();
@@ -201,7 +203,9 @@ export class MessageService {
     const message = await this.ensureWritableMessage(messageId, userId);
 
     if (message.conversation.isArchived) {
-      throw new BadRequestException('Cannot delete a message in an archived conversation');
+      throw new BadRequestException(
+        'Cannot delete a message in an archived conversation',
+      );
     }
 
     const conversationRole = message.conversation.members[0]?.role;

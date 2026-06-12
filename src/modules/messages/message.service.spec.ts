@@ -1106,10 +1106,7 @@ describe('MessageService', () => {
       },
     });
 
-    const result = await service.deleteAttachment(
-      'attachment-id',
-      'uploader-id',
-    );
+    await service.deleteAttachment('attachment-id', 'uploader-id');
 
     expect(prisma.attachment.update).toHaveBeenCalledWith({
       where: {

@@ -65,4 +65,3 @@ export type MemberLeftInput = {
   workspaceId: string;
   user: SocketUser;
 };
-

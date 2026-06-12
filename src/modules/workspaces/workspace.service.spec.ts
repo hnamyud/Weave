@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 jest.mock(
@@ -130,7 +135,7 @@ describe('WorkspaceService', () => {
       },
     ]);
 
-    const result = await service.getAllWorkspaceById(1, 10, 'user-id');
+    const result = await service.getAllWorkspaceById('1', '10', 'user-id');
 
     const where = {
       userId: 'user-id',
@@ -194,7 +199,7 @@ describe('WorkspaceService', () => {
 
     await expect(
       service.getWorkspaceById('workspace-id', 'user-id'),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ForbiddenException);
     expect(prisma.workspaceMember.count).not.toHaveBeenCalled();
   });
 
@@ -231,6 +236,22 @@ describe('WorkspaceService', () => {
     });
   });
 
+  it('rejects update when requester is not a workspace member', async () => {
+    prisma.workspaceMember.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.updateWorkspace({ name: 'X' }, 'workspace-id', 'user-id'),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('rejects update when requester is not owner or admin', async () => {
+    prisma.workspaceMember.findFirst.mockResolvedValue({ role: 'MEMBER' });
+
+    await expect(
+      service.updateWorkspace({ name: 'X' }, 'workspace-id', 'user-id'),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
   it('soft deletes only non-deleted workspaces owned by the requester', async () => {
     prisma.workspace.findFirst.mockResolvedValue({ ownerId: 'owner-id' });
     prisma.workspace.update.mockResolvedValue({
@@ -260,5 +281,21 @@ describe('WorkspaceService', () => {
         updatedAt: expect.any(Date),
       },
     });
+  });
+
+  it('rejects delete when workspace does not exist', async () => {
+    prisma.workspace.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.deleteWorkspace('workspace-id', 'owner-id'),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('rejects delete when requester is not the owner', async () => {
+    prisma.workspace.findFirst.mockResolvedValue({ ownerId: 'real-owner-id' });
+
+    await expect(
+      service.deleteWorkspace('workspace-id', 'other-user-id'),
+    ).rejects.toThrow(ForbiddenException);
   });
 });

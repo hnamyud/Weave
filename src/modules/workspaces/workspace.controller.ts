@@ -19,6 +19,7 @@ import { ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { UserInterface } from '../../shared/interfaces/users.interface';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { WorkspaceMemberGuard } from '../../common/guards/workspace-member.guard';
+import { PoliciesGuard } from '../../common/guards/policy.guard';
 import { RequireWorkspacePermission } from '../../common/decorators/policy.decorator';
 import { Action } from '../../shared/enums/action.enum';
 
@@ -55,18 +56,18 @@ export class WorkspaceController {
   @ResponseMessage("Get all user's workspaces successfully!")
   async getAllWorkspaces(
     @GetUser() user: UserInterface,
-    @Query('current') currentPage: string,
-    @Query('pageSize') limit: string,
+    @Query('current') currentPage: string | undefined,
+    @Query('pageSize') limit: string | undefined,
   ) {
     return this.workspaceService.getAllWorkspaceById(
-      +currentPage,
-      +limit,
+      currentPage,
+      limit,
       user.id,
     );
   }
 
   @Get('/:id')
-  @UseGuards(WorkspaceMemberGuard)
+  @UseGuards(WorkspaceMemberGuard, PoliciesGuard)
   @RequireWorkspacePermission(Action.Read)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Get workspace by ID successfully!')
@@ -78,7 +79,7 @@ export class WorkspaceController {
   }
 
   @Patch('/:id')
-  @UseGuards(WorkspaceMemberGuard)
+  @UseGuards(WorkspaceMemberGuard, PoliciesGuard)
   @RequireWorkspacePermission(Action.Update)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Workspace updated successfully!')
@@ -109,7 +110,7 @@ export class WorkspaceController {
   }
 
   @Delete('/:id')
-  @UseGuards(WorkspaceMemberGuard)
+  @UseGuards(WorkspaceMemberGuard, PoliciesGuard)
   @RequireWorkspacePermission(Action.Delete)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Workspace deleted successfully!')

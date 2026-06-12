@@ -54,7 +54,9 @@ describe('RealtimeGateway', () => {
   };
 
   const configService = {
-    get: jest.fn<(key: string) => string | undefined>(() => 'http://localhost:3000'),
+    get: jest.fn<(key: string) => string | undefined>(
+      () => 'http://localhost:3000',
+    ),
   };
 
   let gateway: RealtimeGateway;
@@ -76,7 +78,10 @@ describe('RealtimeGateway', () => {
     expect(client.data.workspaceId).toBe('workspace-id');
     expect(join).toHaveBeenCalledWith(ROOMS.workspace('workspace-id'));
     expect(join).toHaveBeenCalledWith(ROOMS.user('user-id'));
-    expect(ack).toEqual({ joined: true, roomId: ROOMS.workspace('workspace-id') });
+    expect(ack).toEqual({
+      joined: true,
+      roomId: ROOMS.workspace('workspace-id'),
+    });
   });
 
   it('rejects workspace join for non-members', async () => {
@@ -103,7 +108,10 @@ describe('RealtimeGateway', () => {
     const ack = await gateway.handleJoinConversation(client, 'conversation-id');
 
     expect(join).toHaveBeenCalledWith(ROOMS.conversation('conversation-id'));
-    expect(ack).toEqual({ joined: true, roomId: ROOMS.conversation('conversation-id') });
+    expect(ack).toEqual({
+      joined: true,
+      roomId: ROOMS.conversation('conversation-id'),
+    });
   });
 
   it('rejects conversation join before workspace join or without membership', async () => {

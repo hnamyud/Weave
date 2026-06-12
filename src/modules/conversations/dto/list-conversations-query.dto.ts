@@ -10,7 +10,9 @@ import {
 import { Transform } from 'class-transformer';
 
 export class ListConversationsQueryDto {
-  @ApiProperty({ description: 'Filter conversations belonging to this workspace' })
+  @ApiProperty({
+    description: 'Filter conversations belonging to this workspace',
+  })
   @IsUUID()
   @IsNotEmpty()
   workspaceId: string;

@@ -6,6 +6,7 @@ import {
 } from '../../common/decorators/customize.decorator';
 import { RequireConversationPermission } from '../../common/decorators/policy.decorator';
 import { ConversationMemberGuard } from '../../common/guards/conversation-member.guard';
+import { PoliciesGuard } from '../../common/guards/policy.guard';
 import { Action } from '../../shared/enums/action.enum';
 import { UserInterface } from '../../shared/interfaces/users.interface';
 import { ConversationMembersService } from './conversation_members.service';
@@ -17,7 +18,7 @@ export class ConversationMentionSearchController {
   ) {}
 
   @Get('mention-search')
-  @UseGuards(ConversationMemberGuard)
+  @UseGuards(ConversationMemberGuard, PoliciesGuard)
   @RequireConversationPermission(Action.Read)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Search mention candidates successfully!')

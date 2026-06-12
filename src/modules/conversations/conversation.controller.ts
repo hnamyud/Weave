@@ -21,6 +21,7 @@ import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { PrivateChannelMemberDto } from './dto/private-channel-member.dto';
 import { ConversationMemberGuard } from '../../common/guards/conversation-member.guard';
 import { WorkspaceMemberGuard } from '../../common/guards/workspace-member.guard';
+import { PoliciesGuard } from '../../common/guards/policy.guard';
 import {
   RequireConversationPermission,
   RequireWorkspacePermission,
@@ -44,7 +45,7 @@ export class ConversationController {
   }
 
   @Post()
-  @UseGuards(WorkspaceMemberGuard)
+  @UseGuards(WorkspaceMemberGuard, PoliciesGuard)
   @RequireWorkspacePermission(Action.Create)
   @ApiBearerAuth('access-token')
   @ApiBody({ type: CreateConversationDto })
@@ -57,7 +58,7 @@ export class ConversationController {
   }
 
   @Post('/:conversationId/join')
-  @UseGuards(WorkspaceMemberGuard)
+  @UseGuards(WorkspaceMemberGuard, PoliciesGuard)
   @RequireConversationPermission(Action.Join)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Join conversation successfully!')
@@ -69,7 +70,7 @@ export class ConversationController {
   }
 
   @Post('/:id/leave')
-  @UseGuards(ConversationMemberGuard)
+  @UseGuards(ConversationMemberGuard, PoliciesGuard)
   @RequireConversationPermission(Action.Leave)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Leave conversation successfully!')
@@ -81,7 +82,7 @@ export class ConversationController {
   }
 
   @Post('/:conversationId/private-members')
-  @UseGuards(ConversationMemberGuard)
+  @UseGuards(ConversationMemberGuard, PoliciesGuard)
   @RequireConversationPermission(Action.Add)
   @ApiBearerAuth('access-token')
   @ApiBody({ type: PrivateChannelMemberDto })
@@ -97,7 +98,7 @@ export class ConversationController {
   }
 
   @Delete('/:conversationId/private-members/:userId')
-  @UseGuards(ConversationMemberGuard)
+  @UseGuards(ConversationMemberGuard, PoliciesGuard)
   @RequireConversationPermission(Action.Kick)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Remove member from private channel successfully!')
@@ -112,7 +113,7 @@ export class ConversationController {
   }
 
   @Get('/:id')
-  @UseGuards(ConversationMemberGuard)
+  @UseGuards(ConversationMemberGuard, PoliciesGuard)
   @RequireConversationPermission(Action.Read)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Get conversation successfully!')
@@ -127,7 +128,7 @@ export class ConversationController {
   }
 
   @Patch('/:id')
-  @UseGuards(ConversationMemberGuard)
+  @UseGuards(ConversationMemberGuard, PoliciesGuard)
   @RequireConversationPermission(Action.Update)
   @ApiBearerAuth('access-token')
   @ApiBody({ type: UpdateConversationDto })
@@ -145,7 +146,7 @@ export class ConversationController {
   }
 
   @Patch('/:id/archive')
-  @UseGuards(ConversationMemberGuard)
+  @UseGuards(ConversationMemberGuard, PoliciesGuard)
   @RequireConversationPermission(Action.Archive)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Archive conversation successfully!')
@@ -160,7 +161,7 @@ export class ConversationController {
   }
 
   @Patch('/:id/unarchive')
-  @UseGuards(ConversationMemberGuard)
+  @UseGuards(ConversationMemberGuard, PoliciesGuard)
   @RequireConversationPermission(Action.Archive)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Unarchive conversation successfully!')
@@ -175,7 +176,7 @@ export class ConversationController {
   }
 
   @Delete('/:id')
-  @UseGuards(ConversationMemberGuard)
+  @UseGuards(ConversationMemberGuard, PoliciesGuard)
   @RequireConversationPermission(Action.Delete)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Delete conversation successfully!')

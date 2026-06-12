@@ -14,8 +14,8 @@ export type CreateDirectInviteInput = CreateDirectInviteDto & {
 export type InviteListStatus = 'ACTIVE';
 
 export type GetWorkspaceInvitesInput = {
-  currentPage: number;
-  limit: number;
+  currentPage: string | undefined;
+  limit: string | undefined;
   workspaceId: string;
   requesterId: string;
   type?: string;

@@ -7,6 +7,7 @@ import {
 } from '../../common/decorators/customize.decorator';
 import { UserInterface } from '../../shared/interfaces/users.interface';
 import { ConversationMemberGuard } from '../../common/guards/conversation-member.guard';
+import { PoliciesGuard } from '../../common/guards/policy.guard';
 import { RequireConversationPermission } from '../../common/decorators/policy.decorator';
 import { Action } from '../../shared/enums/action.enum';
 
@@ -17,7 +18,7 @@ export class ConversationMembersController {
   ) {}
 
   @Get('/:conversationId')
-  @UseGuards(ConversationMemberGuard)
+  @UseGuards(ConversationMemberGuard, PoliciesGuard)
   @RequireConversationPermission(Action.Read)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Get conversation members successfully!')

@@ -1,7 +1,9 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { v7 as uuidv7 } from 'uuid';
 import { PrismaService } from 'prisma/prisma.service';
@@ -46,8 +48,8 @@ export class WorkspaceService {
   }
 
   async getAllWorkspaceById(
-    currentPage: number,
-    limit: number,
+    currentPage: string | undefined,
+    limit: string | undefined,
     userId: string,
   ) {
     const page = parsePositiveInteger(currentPage, 1, 'currentPage');
@@ -123,7 +125,7 @@ export class WorkspaceService {
     });
 
     if (!workspaceMember) {
-      throw new BadRequestException(
+      throw new ForbiddenException(
         'User is not an active member of this workspace',
       );
     }
@@ -161,7 +163,7 @@ export class WorkspaceService {
     });
 
     if (!member) {
-      throw new BadRequestException(
+      throw new ForbiddenException(
         'User is not an active member of this workspace',
       );
     }
@@ -170,7 +172,7 @@ export class WorkspaceService {
       member.role !== WorkspaceRole.OWNER &&
       member.role !== WorkspaceRole.ADMIN
     ) {
-      throw new BadRequestException(
+      throw new ForbiddenException(
         'Only workspace owner or admin can update workspace',
       );
     }
@@ -202,13 +204,11 @@ export class WorkspaceService {
     });
 
     if (!workspace) {
-      throw new BadRequestException('Workspace does not exist');
+      throw new NotFoundException('Workspace does not exist');
     }
 
     if (workspace.ownerId !== userId) {
-      throw new BadRequestException(
-        'Only workspace owner can delete workspace',
-      );
+      throw new ForbiddenException('Only workspace owner can delete workspace');
     }
 
     return this.prisma.workspace.update({

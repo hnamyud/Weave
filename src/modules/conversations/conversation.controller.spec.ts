@@ -110,7 +110,10 @@ describe('ConversationController metadata', () => {
       workspaceId: 'workspace-id',
       type: 'CHANNEL',
     };
-    const user: AuthenticatedUser = { id: 'user-id', email: 'user@example.com' };
+    const user: AuthenticatedUser = {
+      id: 'user-id',
+      email: 'user@example.com',
+    };
 
     await controller.createConversation(dto, user);
 

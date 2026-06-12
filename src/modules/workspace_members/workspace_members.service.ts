@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { WorkspaceRole } from '@prisma/client';
 import { parsePositiveInteger } from '../../common/utils/parse-interger.utils';
@@ -8,8 +12,8 @@ export class WorkspaceMembersService {
   constructor(private prisma: PrismaService) {}
 
   async getWorkspaceMembers(
-    currentPage: number,
-    limit: number,
+    currentPage: string | undefined,
+    limit: string | undefined,
     workspaceId: string,
   ) {
     const page = parsePositiveInteger(currentPage, 1, 'currentPage');
@@ -61,19 +65,37 @@ export class WorkspaceMembersService {
     workspaceId: string,
     userId: string,
     role: WorkspaceRole,
+    actorId: string,
   ) {
     this.ensureValidWorkspaceRole(role);
 
-    const member = await this.prisma.workspaceMember.findFirst({
-      where: {
-        workspaceId,
-        userId,
-        leftAt: null,
-        workspace: {
-          isDeleted: false,
+    // Fetch actor and target membership in parallel
+    const [actor, member] = await Promise.all([
+      this.prisma.workspaceMember.findFirst({
+        where: {
+          workspaceId,
+          userId: actorId,
+          leftAt: null,
+          workspace: { isDeleted: false },
         },
-      },
-    });
+        select: { role: true },
+      }),
+      this.prisma.workspaceMember.findFirst({
+        where: {
+          workspaceId,
+          userId,
+          leftAt: null,
+          workspace: { isDeleted: false },
+        },
+        select: { role: true },
+      }),
+    ]);
+
+    if (!actor) {
+      throw new ForbiddenException(
+        'You are not an active member of this workspace',
+      );
+    }
 
     if (!member) {
       throw new BadRequestException(
@@ -83,6 +105,15 @@ export class WorkspaceMembersService {
 
     if (member.role === WorkspaceRole.OWNER) {
       throw new BadRequestException('Workspace owner role cannot be changed');
+    }
+
+    // Only OWNER can grant or revoke ADMIN role
+    if (role === WorkspaceRole.ADMIN || member.role === WorkspaceRole.ADMIN) {
+      if (actor.role !== WorkspaceRole.OWNER) {
+        throw new ForbiddenException(
+          'Only workspace owner can grant or revoke the admin role',
+        );
+      }
     }
 
     return this.prisma.workspaceMember.update({

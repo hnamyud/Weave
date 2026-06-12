@@ -16,6 +16,7 @@ import {
 } from '../../common/decorators/customize.decorator';
 import { UserInterface } from 'src/shared/interfaces/users.interface';
 import { WorkspaceMemberGuard } from '../../common/guards/workspace-member.guard';
+import { PoliciesGuard } from '../../common/guards/policy.guard';
 import { RequireWorkspacePermission } from '../../common/decorators/policy.decorator';
 import { Action } from '../../shared/enums/action.enum';
 import { WorkspaceRole } from '@prisma/client';
@@ -27,24 +28,24 @@ export class WorkspaceMembersController {
   ) {}
 
   @Get('/:workspaceId')
-  @UseGuards(WorkspaceMemberGuard)
+  @UseGuards(WorkspaceMemberGuard, PoliciesGuard)
   @RequireWorkspacePermission(Action.Read)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Get all workspace members successfully!')
   async getAllMembers(
     @Param('workspaceId') workspaceId: string,
-    @Query('current') currentPage: string,
-    @Query('pageSize') limit: string,
+    @Query('current') currentPage: string | undefined,
+    @Query('pageSize') limit: string | undefined,
   ) {
     return this.workspaceMembersService.getWorkspaceMembers(
-      +currentPage,
-      +limit,
+      currentPage,
+      limit,
       workspaceId,
     );
   }
 
   @Patch('/:workspaceId/:userId/grant-role')
-  @UseGuards(WorkspaceMemberGuard)
+  @UseGuards(WorkspaceMemberGuard, PoliciesGuard)
   @RequireWorkspacePermission(Action.Kick)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Grant workspace role successfully!')
@@ -52,16 +53,18 @@ export class WorkspaceMembersController {
     @Param('workspaceId') workspaceId: string,
     @Param('userId') userId: string,
     @Query('role', new ParseEnumPipe(WorkspaceRole)) role: WorkspaceRole,
+    @GetUser() actor: UserInterface,
   ) {
     return this.workspaceMembersService.grantWorkspaceRole(
       workspaceId,
       userId,
       role,
+      actor.id,
     );
   }
 
   @Delete('/:workspaceId/:userId/kick')
-  @UseGuards(WorkspaceMemberGuard)
+  @UseGuards(WorkspaceMemberGuard, PoliciesGuard)
   @RequireWorkspacePermission(Action.Kick)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Kick workspace member successfully!')

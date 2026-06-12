@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 jest.mock(
@@ -49,7 +49,7 @@ describe('WorkspaceMembersService', () => {
       },
     ]);
 
-    await service.getWorkspaceMembers(1, 10, 'workspace-id');
+    await service.getWorkspaceMembers('1', '10', 'workspace-id');
 
     expect(prisma.workspaceMember.count).toHaveBeenCalledWith({
       where: {
@@ -75,12 +75,14 @@ describe('WorkspaceMembersService', () => {
 
   it('rejects invalid pagination values', async () => {
     await expect(
-      service.getWorkspaceMembers(0, 10, 'workspace-id'),
+      service.getWorkspaceMembers('0', '10', 'workspace-id'),
     ).rejects.toThrow(BadRequestException);
   });
 
   it('grants roles only to active members in non-deleted workspaces', async () => {
-    prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'member-id' });
+    prisma.workspaceMember.findFirst
+      .mockResolvedValueOnce({ id: 'actor-id', role: 'OWNER' }) // actor
+      .mockResolvedValueOnce({ id: 'member-id', role: 'MEMBER' }); // target
     prisma.workspaceMember.update.mockResolvedValue({
       id: 'member-id',
       role: 'ADMIN',
@@ -90,18 +92,9 @@ describe('WorkspaceMembersService', () => {
       'workspace-id',
       'user-id',
       'ADMIN',
+      'actor-id',
     );
 
-    expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith({
-      where: {
-        workspaceId: 'workspace-id',
-        userId: 'user-id',
-        leftAt: null,
-        workspace: {
-          isDeleted: false,
-        },
-      },
-    });
     expect(prisma.workspaceMember.update).toHaveBeenCalledWith({
       where: {
         workspaceId_userId: {
@@ -120,13 +113,16 @@ describe('WorkspaceMembersService', () => {
   });
 
   it('rejects granting roles to missing or inactive members', async () => {
-    prisma.workspaceMember.findFirst.mockResolvedValue(null);
+    prisma.workspaceMember.findFirst
+      .mockResolvedValueOnce({ id: 'actor-id', role: 'OWNER' }) // actor
+      .mockResolvedValueOnce(null); // target not found
 
     await expect(
       service.grantWorkspaceRole(
         'workspace-id',
         'user-id',
         WorkspaceRole.Admin,
+        'actor-id',
       ),
     ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
@@ -138,6 +134,7 @@ describe('WorkspaceMembersService', () => {
         'workspace-id',
         'user-id',
         'INVALID' as WorkspaceRole,
+        'actor-id',
       ),
     ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceMember.findFirst).not.toHaveBeenCalled();
@@ -150,6 +147,7 @@ describe('WorkspaceMembersService', () => {
         'workspace-id',
         'user-id',
         WorkspaceRole.Owner,
+        'actor-id',
       ),
     ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceMember.findFirst).not.toHaveBeenCalled();
@@ -157,19 +155,70 @@ describe('WorkspaceMembersService', () => {
   });
 
   it('rejects changing the current workspace owner role', async () => {
-    prisma.workspaceMember.findFirst.mockResolvedValue({
-      id: 'member-id',
-      role: 'OWNER',
-    });
+    prisma.workspaceMember.findFirst
+      .mockResolvedValueOnce({ id: 'actor-id', role: 'OWNER' }) // actor
+      .mockResolvedValueOnce({ id: 'owner-id', role: 'OWNER' }); // target is OWNER
 
     await expect(
       service.grantWorkspaceRole(
         'workspace-id',
         'owner-id',
         WorkspaceRole.Admin,
+        'actor-id',
       ),
     ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects ADMIN trying to grant ADMIN role to another member', async () => {
+    prisma.workspaceMember.findFirst
+      .mockResolvedValueOnce({ id: 'actor-id', role: 'ADMIN' }) // actor is ADMIN
+      .mockResolvedValueOnce({ id: 'member-id', role: 'MEMBER' }); // target is MEMBER
+
+    await expect(
+      service.grantWorkspaceRole(
+        'workspace-id',
+        'member-id',
+        WorkspaceRole.Admin,
+        'actor-id',
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects ADMIN trying to demote another ADMIN', async () => {
+    prisma.workspaceMember.findFirst
+      .mockResolvedValueOnce({ id: 'actor-id', role: 'ADMIN' }) // actor is ADMIN
+      .mockResolvedValueOnce({ id: 'other-admin-id', role: 'ADMIN' }); // target is ADMIN
+
+    await expect(
+      service.grantWorkspaceRole(
+        'workspace-id',
+        'other-admin-id',
+        WorkspaceRole.Member,
+        'actor-id',
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
+  });
+
+  it('allows OWNER to demote an ADMIN to MEMBER', async () => {
+    prisma.workspaceMember.findFirst
+      .mockResolvedValueOnce({ id: 'actor-id', role: 'OWNER' }) // actor is OWNER
+      .mockResolvedValueOnce({ id: 'admin-id', role: 'ADMIN' }); // target is ADMIN
+    prisma.workspaceMember.update.mockResolvedValue({
+      id: 'admin-id',
+      role: 'MEMBER',
+    });
+
+    await expect(
+      service.grantWorkspaceRole(
+        'workspace-id',
+        'admin-id',
+        WorkspaceRole.Member,
+        'actor-id',
+      ),
+    ).resolves.toEqual({ id: 'admin-id', role: 'MEMBER' });
   });
 
   it('prevents the owner from leaving their workspace', async () => {

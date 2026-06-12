@@ -29,7 +29,7 @@ export class ConversationService {
     private prisma: PrismaService,
     private conversationMembersService: ConversationMembersService,
     private realtimeService: RealtimeService,
-  ) { }
+  ) {}
 
   async createConversation(dto: CreateConversationDto, userId: string) {
     await this.ensureActiveWorkspaceMember(dto.workspaceId, userId);
@@ -212,8 +212,12 @@ export class ConversationService {
           workspaceId: query.workspaceId,
           isDeleted: false,
           ...(query.type !== undefined ? { type: query.type } : {}),
-          ...(query.isArchived !== undefined ? { isArchived: query.isArchived } : {}),
-          ...(query.isPrivate !== undefined ? { isPrivate: query.isPrivate } : {}),
+          ...(query.isArchived !== undefined
+            ? { isArchived: query.isArchived }
+            : {}),
+          ...(query.isPrivate !== undefined
+            ? { isPrivate: query.isPrivate }
+            : {}),
         },
       },
       select: {
@@ -328,10 +332,11 @@ export class ConversationService {
       throw new BadRequestException('Cannot leave a DM conversation');
     }
 
-    const result = await this.conversationMembersService.removeConversationMember(
-      conversationId,
-      userId,
-    );
+    const result =
+      await this.conversationMembersService.removeConversationMember(
+        conversationId,
+        userId,
+      );
 
     const leftUser = await this.prisma.user.findUnique({
       where: { id: userId },

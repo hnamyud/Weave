@@ -21,7 +21,6 @@ type JwtAccessPayload = {
   sub: string;
 };
 
-
 function normalizeToken(value: unknown): string | null {
   if (typeof value !== 'string') {
     return null;

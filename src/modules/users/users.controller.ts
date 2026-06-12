@@ -1,4 +1,12 @@
-import { Controller, Get, Patch, Delete, Param, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import {
   GetUser,
@@ -8,6 +16,7 @@ import { UserInterface } from '../../shared/interfaces/users.interface';
 import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { RequireUserPermission } from '../../common/decorators/policy.decorator';
+import { PoliciesGuard } from '../../common/guards/policy.guard';
 import { Action } from '../../shared/enums/action.enum';
 
 @Controller('users')
@@ -15,6 +24,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('/me')
+  @UseGuards(PoliciesGuard)
   @RequireUserPermission(Action.Read)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Get my profile successfully!')
@@ -23,6 +33,7 @@ export class UsersController {
   }
 
   @Get('/:id')
+  @UseGuards(PoliciesGuard)
   @RequireUserPermission(Action.Read)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Get user profile successfully!')
@@ -31,6 +42,7 @@ export class UsersController {
   }
 
   @Patch('/me')
+  @UseGuards(PoliciesGuard)
   @RequireUserPermission(Action.Update)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Update my profile successfully!')
@@ -43,6 +55,7 @@ export class UsersController {
   }
 
   @Delete('/me')
+  @UseGuards(PoliciesGuard)
   @RequireUserPermission(Action.Delete)
   @ApiBearerAuth('access-token')
   @ResponseMessage('Delete account successfully!')

@@ -5,8 +5,6 @@ import { helmetConfig } from './config/helmet.config';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
-import { PoliciesGuard } from './common/guards/policy.guard';
-import { CaslAbilityFactory } from './common/casl/ability.factory';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -32,11 +30,11 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
-  // Use JWT global
-  app.useGlobalGuards(
-    new JwtAuthGuard(reflector),
-    new PoliciesGuard(reflector, app.get(CaslAbilityFactory)),
-  );
+  // Use JWT global — PoliciesGuard is NOT global; it is applied at route level
+  // after the resource guards (WorkspaceMemberGuard / ConversationMemberGuard)
+  // so that request.workspaceMember / conversationMember are populated before
+  // CASL builds the ability.
+  app.useGlobalGuards(new JwtAuthGuard(reflector));
 
   app.useGlobalPipes(
     new ValidationPipe({

@@ -554,8 +554,8 @@ describe('WorkspaceInviteService', () => {
     ]);
 
     const result = await service.getWorkspaceInvites({
-      currentPage: 1,
-      limit: 10,
+      currentPage: '1',
+      limit: '10',
       workspaceId: 'workspace-id',
       requesterId: 'requester-id',
       type: 'DIRECT',
@@ -637,8 +637,8 @@ describe('WorkspaceInviteService', () => {
     ]);
 
     const result = await service.getWorkspaceInvites({
-      currentPage: 1,
-      limit: 10,
+      currentPage: '1',
+      limit: '10',
       workspaceId: 'workspace-id',
       requesterId: 'requester-id',
       type: 'LINK',
@@ -679,8 +679,8 @@ describe('WorkspaceInviteService', () => {
   it('rejects invalid invite list filters', async () => {
     await expect(
       service.getWorkspaceInvites({
-        currentPage: 1,
-        limit: 10,
+        currentPage: '1',
+        limit: '10',
         workspaceId: 'workspace-id',
         requesterId: 'requester-id',
         type: 'INVALID',

@@ -14,14 +14,18 @@ import {
   ResponseMessage,
 } from '../../common/decorators/customize.decorator';
 import { CreateDirectInviteDto, CreateInviteLinkDto } from './dto/invite.dto';
-import { ApiBody } from '@nestjs/swagger';
+import { ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import {
   DirectInviteResponseDto,
   LinkInviteResponseDto,
 } from './dto/invite-response.dto';
 import { UserInterface } from '../../shared/interfaces/users.interface';
 import { WorkspaceMemberGuard } from '../../common/guards/workspace-member.guard';
-import { RequireWorkspacePermission } from '../../common/decorators/policy.decorator';
+import { PoliciesGuard } from '../../common/guards/policy.guard';
+import {
+  RequireWorkspacePermission,
+  RequireWorkspaceInvitePermission,
+} from '../../common/decorators/policy.decorator';
 import { Action } from '../../shared/enums/action.enum';
 
 @Controller('workspace-invite')
@@ -31,20 +35,21 @@ export class WorkspaceInviteController {
   ) {}
 
   @Get('/:workspaceId')
-  @UseGuards(WorkspaceMemberGuard)
-  @RequireWorkspacePermission(Action.Read)
+  @UseGuards(WorkspaceMemberGuard, PoliciesGuard)
+  @RequireWorkspaceInvitePermission(Action.Read)
+  @ApiBearerAuth('access-token')
   @ResponseMessage('Get workspace invites successfully!')
   async getWorkspaceInvites(
     @Param('workspaceId') workspaceId: string,
-    @Query('current') currentPage: string,
-    @Query('pageSize') limit: string,
+    @Query('current') currentPage: string | undefined,
+    @Query('pageSize') limit: string | undefined,
     @Query('type') type: string,
     @Query('status') status: string,
     @GetUser() user: UserInterface,
   ) {
     return this.workspaceInviteService.getWorkspaceInvites({
-      currentPage: +currentPage,
-      limit: +limit,
+      currentPage,
+      limit,
       workspaceId,
       requesterId: user.id,
       type,
@@ -53,8 +58,9 @@ export class WorkspaceInviteController {
   }
 
   @Post('/:workspaceId/direct')
-  @UseGuards(WorkspaceMemberGuard)
+  @UseGuards(WorkspaceMemberGuard, PoliciesGuard)
   @RequireWorkspacePermission(Action.Manage)
+  @ApiBearerAuth('access-token')
   @ResponseMessage('Create direct invite successfully!')
   @ApiBody({
     type: CreateDirectInviteDto,
@@ -83,8 +89,9 @@ export class WorkspaceInviteController {
   }
 
   @Post('/:workspaceId/link')
-  @UseGuards(WorkspaceMemberGuard)
+  @UseGuards(WorkspaceMemberGuard, PoliciesGuard)
   @RequireWorkspacePermission(Action.Manage)
+  @ApiBearerAuth('access-token')
   @ResponseMessage('Create invite link successfully!')
   @ApiBody({
     type: CreateInviteLinkDto,
@@ -113,6 +120,7 @@ export class WorkspaceInviteController {
   }
 
   @Post('/accept-direct')
+  @ApiBearerAuth('access-token')
   @ResponseMessage('Accept direct invite successfully!')
   @ApiBody({
     type: DirectInviteResponseDto,
@@ -134,6 +142,7 @@ export class WorkspaceInviteController {
   }
 
   @Post('/accept-link')
+  @ApiBearerAuth('access-token')
   @ResponseMessage('Accept invite link successfully!')
   @ApiBody({
     type: LinkInviteResponseDto,
@@ -155,6 +164,7 @@ export class WorkspaceInviteController {
   }
 
   @Post('/deny')
+  @ApiBearerAuth('access-token')
   @ResponseMessage('Deny invite successfully!')
   @ApiBody({
     type: DirectInviteResponseDto,
@@ -176,8 +186,9 @@ export class WorkspaceInviteController {
   }
 
   @Patch('/:inviteId/revoke')
-  @UseGuards(WorkspaceMemberGuard)
+  @UseGuards(WorkspaceMemberGuard, PoliciesGuard)
   @RequireWorkspacePermission(Action.Manage)
+  @ApiBearerAuth('access-token')
   @ResponseMessage('Revoke invite successfully!')
   async revokeInvite(
     @Param('inviteId') inviteId: string,
