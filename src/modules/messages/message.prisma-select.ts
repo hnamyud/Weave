@@ -49,6 +49,7 @@ export function buildMessageWithPermissionInclude(userId: string) {
     conversation: {
       select: {
         workspaceId: true,
+        isArchived: true,
         members: {
           where: {
             userId,
@@ -90,6 +91,7 @@ export const conversationMembershipSelect = {
 export function buildAttachmentPermissionSelect(userId: string) {
   return {
     id: true,
+    messageId: true,
     uploaderId: true,
     message: {
       select: {

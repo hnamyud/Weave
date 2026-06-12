@@ -21,9 +21,6 @@ type JwtAccessPayload = {
   sub: string;
 };
 
-type SocketAuthHandshake = {
-  token?: unknown;
-};
 
 function normalizeToken(value: unknown): string | null {
   if (typeof value !== 'string') {
@@ -45,12 +42,11 @@ function extractBearerToken(authorization: unknown): string | null {
 }
 
 function getHandshakeToken(client: AuthenticatedSocket): string | null {
-  const auth = client.handshake.auth as SocketAuthHandshake | undefined;
+  const auth = client.handshake.auth as Record<string, unknown> | undefined;
 
   return (
     normalizeToken(auth?.token) ??
-    extractBearerToken(client.handshake.headers.authorization) ??
-    normalizeToken(client.handshake.query.token)
+    extractBearerToken(client.handshake.headers.authorization)
   );
 }
 

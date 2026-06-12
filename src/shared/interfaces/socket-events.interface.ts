@@ -9,8 +9,14 @@ import { SocketTyping } from './socket-typing.interface';
 
 // Events the server listens for (client emits these)
 export interface ClientToServerEvents {
-  [EVENTS.JOIN_WORKSPACE]: (workspaceId: string) => void;
-  [EVENTS.JOIN_CONVERSATION]: (conversationId: string) => void;
+  [EVENTS.JOIN_WORKSPACE]: (
+    workspaceId: string,
+    ack: (response: { joined: true; roomId: string }) => void,
+  ) => void;
+  [EVENTS.JOIN_CONVERSATION]: (
+    conversationId: string,
+    ack: (response: { joined: true; roomId: string }) => void,
+  ) => void;
   [EVENTS.LEAVE_CONVERSATION]: (conversationId: string) => void;
   [EVENTS.TYPING_START]: (conversationId: string) => void;
   [EVENTS.TYPING_STOP]: (conversationId: string) => void;

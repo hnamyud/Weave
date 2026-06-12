@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -41,6 +42,8 @@ import type {
 
 @Injectable()
 export class MessageService {
+  private readonly logger = new Logger(MessageService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly fileService: FileService,
@@ -98,6 +101,11 @@ export class MessageService {
     userId: string,
   ): Promise<MessageResponse> {
     const message = await this.ensureWritableMessage(messageId, userId);
+
+    if (message.conversation.isArchived) {
+      throw new BadRequestException('Cannot edit a message in an archived conversation');
+    }
+
     const content = dto.content.trim();
 
     if (!content) {
@@ -108,31 +116,52 @@ export class MessageService {
       throw new ForbiddenException('Only the sender can edit this message');
     }
 
-    const mentionedUserIds = await this.validateMentionedUserIds(
-      message.conversationId,
-      userId,
-      dto.mentionedUserIds,
-    );
-    const newMentionedUserIds = await this.prisma.$transaction(
+    const shouldSyncMentions = dto.mentionedUserIds !== undefined;
+    const mentionedUserIds = shouldSyncMentions
+      ? await this.validateMentionedUserIds(
+          message.conversationId,
+          userId,
+          dto.mentionedUserIds,
+        )
+      : [];
+
+    const mentionSyncResult = await this.prisma.$transaction(
       async (tx: Prisma.TransactionClient) => {
-        const existingMentions = await tx.mention.findMany({
-          where: {
-            messageId,
-          },
-          select: {
-            mentionedUserId: true,
-          },
-        });
-        const existingMentionedUserIds = existingMentions.map(
-          (mention) => mention.mentionedUserId,
-        );
-        const mentionedUserIdsToRemove = existingMentionedUserIds.filter(
-          (mentionedUserId) => !mentionedUserIds.includes(mentionedUserId),
-        );
-        const mentionedUserIdsToAdd = mentionedUserIds.filter(
-          (mentionedUserId) =>
-            !existingMentionedUserIds.includes(mentionedUserId),
-        );
+        let mentionedUserIdsToAdd: string[] = [];
+
+        if (shouldSyncMentions) {
+          const existingMentions = await tx.mention.findMany({
+            where: {
+              messageId,
+            },
+            select: {
+              mentionedUserId: true,
+            },
+          });
+          const existingMentionedUserIds = existingMentions.map(
+            (mention) => mention.mentionedUserId,
+          );
+          const mentionedUserIdsToRemove = existingMentionedUserIds.filter(
+            (mentionedUserId) => !mentionedUserIds.includes(mentionedUserId),
+          );
+          mentionedUserIdsToAdd = mentionedUserIds.filter(
+            (mentionedUserId) =>
+              !existingMentionedUserIds.includes(mentionedUserId),
+          );
+
+          if (mentionedUserIdsToRemove.length > 0) {
+            await tx.mention.deleteMany({
+              where: {
+                messageId,
+                mentionedUserId: {
+                  in: mentionedUserIdsToRemove,
+                },
+              },
+            });
+          }
+
+          await this.createMentionRecords(tx, messageId, mentionedUserIdsToAdd);
+        }
 
         const updatedMessage = await tx.message.update({
           where: {
@@ -146,43 +175,35 @@ export class MessageService {
           include: baseMessageInclude,
         });
 
-        if (mentionedUserIdsToRemove.length > 0) {
-          await tx.mention.deleteMany({
-            where: {
-              messageId,
-              mentionedUserId: {
-                in: mentionedUserIdsToRemove,
-              },
-            },
-          });
-        }
-
-        await this.createMentionRecords(tx, messageId, mentionedUserIdsToAdd);
-
         return {
-          newMentionedUserIds: mentionedUserIdsToAdd,
+          addedUserIds: mentionedUserIdsToAdd,
           updatedMessage,
         };
       },
     );
 
-    const response = this.mapMessageResponse(
-      newMentionedUserIds.updatedMessage,
-    );
+    const response = this.mapMessageResponse(mentionSyncResult.updatedMessage);
     this.realtimeService.emitMessageUpdated(response);
-    await this.createMentionNotifications({
-      mentionedUserIds: newMentionedUserIds.newMentionedUserIds,
+    this.createMentionNotifications({
+      mentionedUserIds: mentionSyncResult.addedUserIds,
       actorId: userId,
       workspaceId: message.conversation.workspaceId,
       conversationId: message.conversationId,
       messageId,
       text: content,
-    });
+    }).catch((err) =>
+      this.logger.error('Failed to send mention notifications on update', err),
+    );
     return response;
   }
 
   async deleteMessage(messageId: string, userId: string) {
     const message = await this.ensureWritableMessage(messageId, userId);
+
+    if (message.conversation.isArchived) {
+      throw new BadRequestException('Cannot delete a message in an archived conversation');
+    }
+
     const conversationRole = message.conversation.members[0]?.role;
     const workspaceRole = message.conversation.workspace.members[0]?.role;
     const canDelete =
@@ -311,7 +332,7 @@ export class MessageService {
       );
     }
 
-    return this.prisma.attachment.update({
+    await this.prisma.attachment.update({
       where: {
         id: attachmentId,
       },
@@ -320,6 +341,20 @@ export class MessageService {
         deletedAt: new Date(),
       },
     });
+
+    const updatedMessage = await this.prisma.message.findFirst({
+      where: {
+        id: attachment.messageId,
+        isDeleted: false,
+      },
+      include: buildMessageWithPermissionInclude(userId),
+    });
+
+    if (updatedMessage) {
+      this.realtimeService.emitMessageUpdated(
+        this.mapMessageResponse(updatedMessage),
+      );
+    }
   }
 
   private async createMessageInConversation(
@@ -384,7 +419,6 @@ export class MessageService {
             parentId: input.parentId,
             content: trimmedContent ?? null,
           },
-          include: baseMessageInclude,
         });
 
         if (attachments.length > 0) {
@@ -418,14 +452,16 @@ export class MessageService {
     );
 
     this.realtimeService.emitMessageCreated(createdMessage);
-    await this.createMentionNotifications({
+    this.createMentionNotifications({
       mentionedUserIds,
       actorId: userId,
       workspaceId: membership.conversation.workspaceId,
       conversationId: input.conversationId,
       messageId,
       text: trimmedContent,
-    });
+    }).catch((err) =>
+      this.logger.error('Failed to send mention notifications on create', err),
+    );
     return createdMessage;
   }
 
@@ -604,6 +640,9 @@ export class MessageService {
     return message;
   }
 
+  // Fetches the message and verifies the user is an active member of its
+  // conversation. Callers are responsible for enforcing write-specific rules
+  // (e.g. sender-only edit, role-based delete, archived conversation check).
   private async ensureWritableMessage(
     messageId: string,
     userId: string,

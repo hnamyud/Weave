@@ -85,7 +85,7 @@ describe('MessageService', () => {
   let service: MessageService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     mockUuid
       .mockReset()
       .mockReturnValueOnce('message-id')
@@ -319,7 +319,6 @@ describe('MessageService', () => {
         parentId: undefined,
         content: null,
       },
-      include: expect.any(Object),
     });
     expect(prisma.attachment.createMany).toHaveBeenCalledWith({
       data: [
@@ -754,6 +753,8 @@ describe('MessageService', () => {
       conversationId: 'conversation-id',
       parentId: null,
       conversation: {
+        workspaceId: 'workspace-id',
+        isArchived: false,
         members: [{ role: 'MEMBER' }],
         workspace: {
           members: [{ role: 'MEMBER' }],
@@ -782,6 +783,8 @@ describe('MessageService', () => {
       conversationId: 'conversation-id',
       parentId: null,
       conversation: {
+        workspaceId: 'workspace-id',
+        isArchived: false,
         members: [{ role: 'MEMBER' }],
         workspace: {
           members: [{ role: 'MEMBER' }],
@@ -1053,6 +1056,7 @@ describe('MessageService', () => {
   it('soft deletes attachments for uploaders, message senders, and admins', async () => {
     prisma.attachment.findFirst.mockResolvedValue({
       id: 'attachment-id',
+      messageId: 'message-id',
       uploaderId: 'uploader-id',
       message: {
         senderId: 'sender-id',
@@ -1076,6 +1080,31 @@ describe('MessageService', () => {
       id: 'attachment-id',
       isDeleted: true,
     });
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'message-id',
+      conversationId: 'conversation-id',
+      parentId: null,
+      senderId: 'sender-id',
+      content: 'hello',
+      isEdited: false,
+      editedAt: null,
+      createdAt: new Date('2026-05-29T00:00:00.000Z'),
+      updatedAt: new Date('2026-05-29T00:00:00.000Z'),
+      sender: {
+        id: 'sender-id',
+        username: 'alice',
+        displayName: 'Alice',
+        avatarUrl: null,
+      },
+      attachments: [],
+      _count: { replies: 0 },
+      conversation: {
+        workspaceId: 'workspace-id',
+        isArchived: false,
+        members: [{ role: 'MEMBER' }],
+        workspace: { members: [{ role: 'MEMBER' }] },
+      },
+    });
 
     const result = await service.deleteAttachment(
       'attachment-id',
@@ -1091,10 +1120,12 @@ describe('MessageService', () => {
         deletedAt: expect.any(Date),
       },
     });
-    expect(result).toEqual({
-      id: 'attachment-id',
-      isDeleted: true,
-    });
+    expect(realtimeService.emitMessageUpdated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'message-id',
+        conversationId: 'conversation-id',
+      }),
+    );
   });
 
   it('rejects attachment deletion for unauthorized members', async () => {
@@ -1128,11 +1159,13 @@ describe('MessageService', () => {
   it('does not emit message deletion when delete permission is denied', async () => {
     prisma.message.findFirst.mockResolvedValue({
       id: 'message-id',
-      senderId: 'author-id',
+      senderId: 'user-id',
       isDeleted: false,
       conversationId: 'conversation-id',
       parentId: null,
       conversation: {
+        workspaceId: 'workspace-id',
+        isArchived: false,
         members: [{ role: 'MEMBER' }],
         workspace: {
           members: [{ role: 'MEMBER' }],

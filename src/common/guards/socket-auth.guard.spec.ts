@@ -38,7 +38,6 @@ function createContext(client: TestSocket): ExecutionContext {
 function createSocket(input: {
   authToken?: string;
   authorization?: string;
-  queryToken?: string;
 }): TestSocket {
   return {
     data: {},
@@ -47,7 +46,7 @@ function createSocket(input: {
       headers: input.authorization
         ? { authorization: input.authorization }
         : {},
-      query: input.queryToken ? { token: input.queryToken } : {},
+      query: {},
     },
   } as unknown as TestSocket;
 }
@@ -95,6 +94,21 @@ describe('SocketAuthGuard', () => {
     await expect(
       guard.canActivate(createContext(createSocket({}))),
     ).rejects.toThrow(WsException);
+  });
+
+  it('rejects token passed in URL query string', async () => {
+    const client = {
+      data: {},
+      handshake: {
+        auth: {},
+        headers: {},
+        query: { token: 'query-token' },
+      },
+    } as unknown as TestSocket;
+
+    await expect(guard.canActivate(createContext(client))).rejects.toThrow(
+      WsException,
+    );
   });
 
   it('rejects invalid tokens', async () => {

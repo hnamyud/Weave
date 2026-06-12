@@ -4,11 +4,13 @@ import {
   MessageBody,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'prisma/prisma.service';
 import { Server, Socket } from 'socket.io';
 import { SocketAuthGuard } from '../../common/guards/socket-auth.guard';
@@ -44,11 +46,11 @@ type ConversationAccess = {
 };
 
 @WebSocketGateway({
-  cors: { origin: process.env.FE_DOMAIN, credentials: true },
+  cors: { origin: process.env.FE_DOMAIN ?? '*', credentials: true },
   namespace: '/',
 })
 export class RealtimeGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
   @WebSocketServer()
   server: TypedSocketServer;
@@ -56,7 +58,25 @@ export class RealtimeGateway
   private readonly logger = new Logger(RealtimeGateway.name);
   private readonly userSockets = new Map<string, Set<string>>();
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  afterInit(server: TypedSocketServer): void {
+    const origin = this.configService.get<string>('FE_DOMAIN');
+
+    if (!origin) {
+      this.logger.warn(
+        'FE_DOMAIN is not set — WebSocket CORS is open to all origins',
+      );
+    }
+
+    server.engine.opts.cors = {
+      origin: origin ?? '*',
+      credentials: true,
+    };
+  }
 
   handleConnection(client: TypedSocket): void {
     this.logger.debug(`Socket connected: ${client.id}`);
@@ -77,7 +97,7 @@ export class RealtimeGateway
   async handleJoinWorkspace(
     @ConnectedSocket() client: TypedSocket,
     @MessageBody() workspaceId: string,
-  ): Promise<void> {
+  ): Promise<{ joined: true; roomId: string }> {
     const userId = this.getAuthenticatedUserId(client);
 
     const member = await this.prisma.workspaceMember.findFirst({
@@ -98,10 +118,13 @@ export class RealtimeGateway
       throw new WsException('Not a workspace member');
     }
 
+    const roomId = ROOMS.workspace(workspaceId);
     client.data.workspaceId = workspaceId;
     this.addUserSocket(userId, client.id);
-    await client.join(ROOMS.workspace(workspaceId));
+    await client.join(roomId);
     await client.join(ROOMS.user(userId));
+
+    return { joined: true, roomId };
   }
 
   @UseGuards(SocketAuthGuard)
@@ -109,9 +132,11 @@ export class RealtimeGateway
   async handleJoinConversation(
     @ConnectedSocket() client: TypedSocket,
     @MessageBody() conversationId: string,
-  ): Promise<void> {
+  ): Promise<{ joined: true; roomId: string }> {
     await this.ensureConversationAccess(client, conversationId);
-    await client.join(ROOMS.conversation(conversationId));
+    const roomId = ROOMS.conversation(conversationId);
+    await client.join(roomId);
+    return { joined: true, roomId };
   }
 
   @UseGuards(SocketAuthGuard)
@@ -198,7 +223,6 @@ export class RealtimeGateway
         conversation: {
           workspaceId,
           isDeleted: false,
-          isArchived: false,
           workspace: {
             isDeleted: false,
             members: {
