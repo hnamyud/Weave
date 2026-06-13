@@ -11,10 +11,16 @@ import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { WorkspaceRole } from '@prisma/client';
 import { parsePositiveInteger } from '../../common/utils/parse-interger.utils';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
+import { PresenceService } from '../realtime/presence.service';
+import { RealtimeService } from '../realtime/realtime.service';
 
 @Injectable()
 export class WorkspaceService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly presenceService: PresenceService,
+    private readonly realtimeService: RealtimeService,
+  ) {}
 
   async createWorkspace(dto: CreateWorkspaceDto, ownerId: string) {
     const workspaceId = uuidv7();
@@ -211,7 +217,7 @@ export class WorkspaceService {
       throw new ForbiddenException('Only workspace owner can delete workspace');
     }
 
-    return this.prisma.workspace.update({
+    const deletedWorkspace = await this.prisma.workspace.update({
       where: { id: workspaceId },
       data: {
         isDeleted: true,
@@ -219,6 +225,11 @@ export class WorkspaceService {
         updatedAt: new Date(),
       },
     });
+
+    await this.presenceService.clearWorkspace(workspaceId);
+    this.realtimeService.emitWorkspaceDeleted(workspaceId);
+
+    return deletedWorkspace;
   }
 
   // Helper methods to handle Prisma errors and convert them to appropriate HTTP exceptions

@@ -3,6 +3,7 @@ import { EVENTS } from '../../shared/constants/socket-event.constant';
 import { ROOMS } from '../../shared/constants/socket-room.constant';
 import { SocketMessage } from '../../shared/interfaces/socket-message.interface';
 import { SocketNotification } from '../../shared/interfaces/socket-notification.interface';
+import { SocketPresence } from '../../shared/interfaces/socket-presence.interface';
 import { RealtimeGateway, TypedSocketServer } from './realtime.gateway';
 import type {
   RealtimeMessageInput,
@@ -119,6 +120,14 @@ export class RealtimeService {
       .emit(EVENTS.CONVERSATION_DELETED, { id: payload.conversationId });
   }
 
+  emitWorkspaceDeleted(workspaceId: string): void {
+    const server = this.getReadyServer();
+    if (!server) return;
+    server
+      .to(ROOMS.workspace(workspaceId))
+      .emit(EVENTS.WORKSPACE_DELETED, { id: workspaceId });
+  }
+
   emitMemberJoined(payload: MemberJoinedInput): void {
     const server = this.getReadyServer();
     if (!server) return;
@@ -139,6 +148,25 @@ export class RealtimeService {
         conversationId: payload.conversationId,
         user: payload.user,
       });
+  }
+
+  emitUserPresence(payload: SocketPresence): void {
+    const server = this.getReadyServer();
+    if (!server) return;
+    server
+      .to(ROOMS.workspace(payload.workspaceId))
+      .emit(EVENTS.USER_PRESENCE, payload);
+  }
+
+  forceLeaveWorkspaceRoom(socketIds: string[], workspaceId: string): void {
+    const server = this.getReadyServer();
+    if (!server) return;
+
+    for (const socketId of socketIds) {
+      void server.sockets.sockets
+        .get(socketId)
+        ?.leave(ROOMS.workspace(workspaceId));
+    }
   }
 
   private mapMessage(message: RealtimeMessageInput): SocketMessage {

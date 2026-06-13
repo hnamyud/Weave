@@ -1,6 +1,14 @@
 import { ConversationType } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 export class CreateConversationDto {
   @IsUUID()
@@ -13,17 +21,34 @@ export class CreateConversationDto {
   @IsEnum(ConversationType, { message: 'Invalid conversation type' })
   type: ConversationType;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   name?: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   description?: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
   @IsOptional()
+  @IsBoolean()
   isPrivate?: boolean;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
   @IsOptional()
+  @IsBoolean()
   isArchived?: boolean;
+
+  @ApiProperty({
+    required: false,
+    description:
+      'For DM: exactly 1 target user ID. For GROUP_DM: 1+ target user IDs.',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID('all', { each: true })
+  memberIds?: string[];
 }

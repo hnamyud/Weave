@@ -105,10 +105,12 @@ export class ConversationController {
   async removeMemberFromPrivateChannel(
     @Param('conversationId') conversationId: string,
     @Param('userId') userId: string,
+    @GetUser() user: UserInterface,
   ) {
     return this.conversationService.removeMemberFromPrivateChannel(
       conversationId,
       userId,
+      user.id,
     );
   }
 

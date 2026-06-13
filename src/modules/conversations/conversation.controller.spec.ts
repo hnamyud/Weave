@@ -143,11 +143,13 @@ describe('ConversationController metadata', () => {
     await controller.removeMemberFromPrivateChannel(
       'conversation-id',
       'target-user-id',
+      { id: 'actor-user-id' } as any,
     );
 
     expect(service.removeMemberFromPrivateChannel).toHaveBeenCalledWith(
       'conversation-id',
       'target-user-id',
+      'actor-user-id',
     );
   });
 });

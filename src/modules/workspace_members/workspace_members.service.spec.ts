@@ -16,6 +16,8 @@ jest.mock('uuid', () => ({
 import { WorkspaceMembersService } from './workspace_members.service';
 import { WorkspaceRole } from '../../shared/enums/workspace-role.enum';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { PresenceService } from '../realtime/presence.service';
+import { RealtimeService } from '../realtime/realtime.service';
 
 describe('WorkspaceMembersService', () => {
   const prisma = {
@@ -27,12 +29,33 @@ describe('WorkspaceMembersService', () => {
       create: jest.fn<(args: any) => Promise<any>>(),
     },
   };
+  const presenceService = {
+    forceLeaveWorkspace:
+      jest.fn<
+        (
+          userId: string,
+          workspaceId: string,
+        ) => Promise<{ affectedSocketIds: string[] }>
+      >(),
+  };
+  const realtimeService = {
+    emitUserPresence: jest.fn<(payload: unknown) => void>(),
+    forceLeaveWorkspaceRoom:
+      jest.fn<(socketIds: string[], workspaceId: string) => void>(),
+  };
 
   let service: WorkspaceMembersService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new WorkspaceMembersService(prisma as unknown as PrismaService);
+    presenceService.forceLeaveWorkspace.mockResolvedValue({
+      affectedSocketIds: ['socket-1'],
+    });
+    service = new WorkspaceMembersService(
+      prisma as unknown as PrismaService,
+      presenceService as unknown as PresenceService,
+      realtimeService as unknown as RealtimeService,
+    );
   });
 
   it('lists members only for non-deleted workspaces', async () => {
@@ -231,5 +254,77 @@ describe('WorkspaceMembersService', () => {
       service.kickMember('workspace-id', 'owner-id'),
     ).rejects.toThrow(BadRequestException);
     expect(prisma.workspaceMember.update).not.toHaveBeenCalled();
+  });
+
+  it('cleans presence before broadcasting when a member is kicked', async () => {
+    prisma.workspaceMember.findFirst.mockResolvedValue({
+      id: 'member-id',
+      role: 'MEMBER',
+    });
+    prisma.workspaceMember.update.mockResolvedValue({
+      id: 'member-id',
+      workspaceId: 'workspace-id',
+      userId: 'user-id',
+      leftAt: new Date('2026-06-13T14:00:00.000Z'),
+    });
+
+    await service.kickMember('workspace-id', 'user-id');
+
+    expect(presenceService.forceLeaveWorkspace).toHaveBeenCalledWith(
+      'user-id',
+      'workspace-id',
+    );
+    expect(realtimeService.emitUserPresence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-id',
+        workspaceId: 'workspace-id',
+        status: 'offline',
+      }),
+    );
+    expect(realtimeService.forceLeaveWorkspaceRoom).toHaveBeenCalledWith(
+      ['socket-1'],
+      'workspace-id',
+    );
+    expect(
+      prisma.workspaceMember.update.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      presenceService.forceLeaveWorkspace.mock.invocationCallOrder[0],
+    );
+    expect(
+      presenceService.forceLeaveWorkspace.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      realtimeService.emitUserPresence.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('leaveWorkspace uses the same presence cleanup flow as kickMember', async () => {
+    prisma.workspaceMember.findFirst.mockResolvedValue({
+      id: 'member-id',
+      role: 'MEMBER',
+    });
+    prisma.workspaceMember.update.mockResolvedValue({
+      id: 'member-id',
+      workspaceId: 'workspace-id',
+      userId: 'user-id',
+      leftAt: new Date('2026-06-13T14:00:00.000Z'),
+    });
+
+    await service.leaveWorkspace('workspace-id', 'user-id');
+
+    expect(presenceService.forceLeaveWorkspace).toHaveBeenCalledWith(
+      'user-id',
+      'workspace-id',
+    );
+    expect(realtimeService.emitUserPresence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-id',
+        workspaceId: 'workspace-id',
+        status: 'offline',
+      }),
+    );
+    expect(realtimeService.forceLeaveWorkspaceRoom).toHaveBeenCalledWith(
+      ['socket-1'],
+      'workspace-id',
+    );
   });
 });

@@ -1,15 +1,32 @@
 import { Module } from '@nestjs/common';
-import { RealtimeService } from './realtime.service';
-import { RealtimeGateway } from './realtime.gateway';
-import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
+import { BullModule } from '@nestjs/bullmq';
 import { StringValue } from 'ms';
 import { PrismaModule } from 'prisma/prisma.module';
+import { RedisModule } from '../../common/cache/redis.module';
 import { SocketAuthGuard } from '../../common/guards/socket-auth.guard';
+import { RealtimeGateway } from './realtime.gateway';
+import { RealtimeService } from './realtime.service';
+import { PresenceService } from './presence.service';
+import { PresenceLastSeenProcessor } from './presence.processor';
 
 @Module({
   imports: [
     PrismaModule,
+    RedisModule,
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          host: configService.get<string>('REDIS_HOST'),
+          port: Number(configService.get<string>('REDIS_PORT') ?? 6379),
+          maxRetriesPerRequest: null,
+        },
+      }),
+      inject: [ConfigService],
+    }),
+    BullModule.registerQueue({ name: 'presence-last-seen' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -23,7 +40,13 @@ import { SocketAuthGuard } from '../../common/guards/socket-auth.guard';
       inject: [ConfigService],
     }),
   ],
-  providers: [RealtimeGateway, RealtimeService, SocketAuthGuard],
-  exports: [RealtimeService],
+  providers: [
+    RealtimeGateway,
+    RealtimeService,
+    PresenceService,
+    PresenceLastSeenProcessor,
+    SocketAuthGuard,
+  ],
+  exports: [RealtimeService, PresenceService],
 })
 export class RealtimeModule {}

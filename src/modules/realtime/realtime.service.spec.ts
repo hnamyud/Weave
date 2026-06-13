@@ -15,9 +15,16 @@ jest.mock(
 describe('RealtimeService', () => {
   const emit = jest.fn<(event: string, payload: unknown) => void>();
   const to = jest.fn<(room: string) => { emit: typeof emit }>();
+  const leave = jest.fn<(room: string) => void>();
+  const socketsGet = jest.fn<(socketId: string) => { leave: typeof leave }>();
   const gateway = {
     getServer: jest.fn(() => ({
       to,
+      sockets: {
+        sockets: {
+          get: socketsGet,
+        },
+      },
     })),
   };
 
@@ -26,6 +33,7 @@ describe('RealtimeService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     to.mockReturnValue({ emit });
+    socketsGet.mockReturnValue({ leave });
     service = new RealtimeService(gateway as unknown as RealtimeGateway);
   });
 
@@ -134,5 +142,23 @@ describe('RealtimeService', () => {
     expect(to).toHaveBeenCalledWith(ROOMS.conversation('conversation-id'));
     expect(emit).toHaveBeenCalledWith(EVENTS.REACTION_ADDED, payload);
     expect(emit).toHaveBeenCalledWith(EVENTS.REACTION_REMOVED, payload);
+  });
+
+  it('emits workspace deletion to the workspace room', () => {
+    service.emitWorkspaceDeleted('workspace-id');
+
+    expect(to).toHaveBeenCalledWith(ROOMS.workspace('workspace-id'));
+    expect(emit).toHaveBeenCalledWith(EVENTS.WORKSPACE_DELETED, {
+      id: 'workspace-id',
+    });
+  });
+
+  it('forces sockets to leave a workspace room without disconnecting them', () => {
+    service.forceLeaveWorkspaceRoom(['socket-1', 'socket-2'], 'workspace-id');
+
+    expect(socketsGet).toHaveBeenCalledWith('socket-1');
+    expect(socketsGet).toHaveBeenCalledWith('socket-2');
+    expect(leave).toHaveBeenCalledTimes(2);
+    expect(leave).toHaveBeenCalledWith(ROOMS.workspace('workspace-id'));
   });
 });

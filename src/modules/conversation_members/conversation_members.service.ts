@@ -2,15 +2,15 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { parsePositiveInteger } from '../../common/utils/parse-interger.utils';
 import { v7 as uuidv7 } from 'uuid';
-import { ConversationRole } from 'src/shared/enums/conversation-role.enum';
+import { ConversationRole } from '@prisma/client';
 
 @Injectable()
 export class ConversationMembersService {
   constructor(private prisma: PrismaService) {}
 
   async getConversationMembers(
-    currentPage: number,
-    limit: number,
+    currentPage: string | undefined,
+    limit: string | undefined,
     conversationId: string,
     requesterId: string,
   ) {
@@ -131,7 +131,7 @@ export class ConversationMembersService {
           id: uuidv7(),
           conversationId,
           userId,
-          role: ConversationRole.Member,
+          role: ConversationRole.MEMBER,
         },
       });
     }
@@ -157,6 +157,7 @@ export class ConversationMembersService {
 
   async removeConversationMember(conversationId: string, userId: string) {
     await this.ensureConversationMember(conversationId, userId);
+    await this.ensureNotLastAdmin(conversationId, userId);
 
     return await this.prisma.conversationMember.update({
       where: {
@@ -186,6 +187,31 @@ export class ConversationMembersService {
     if (!member) {
       throw new BadRequestException(
         'User is not a member of this conversation',
+      );
+    }
+  }
+
+  private async ensureNotLastAdmin(
+    conversationId: string,
+    userId: string,
+  ): Promise<void> {
+    const member = await this.prisma.conversationMember.findFirst({
+      where: { conversationId, userId, leftAt: null },
+    });
+
+    if (!member || member.role !== ConversationRole.ADMIN) return;
+
+    const adminCount = await this.prisma.conversationMember.count({
+      where: {
+        conversationId,
+        role: ConversationRole.ADMIN,
+        leftAt: null,
+      },
+    });
+
+    if (adminCount <= 1) {
+      throw new BadRequestException(
+        'Cannot remove the last admin. Transfer admin role to another member first.',
       );
     }
   }

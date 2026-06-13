@@ -27,6 +27,19 @@ jest.mock(
   { virtual: true },
 );
 
+jest.mock('@prisma/client', () => ({
+  ConversationType: {
+    CHANNEL: 'CHANNEL',
+    DM: 'DM',
+    GROUP_DM: 'GROUP_DM',
+  },
+  ConversationRole: {
+    ADMIN: 'ADMIN',
+    MEMBER: 'MEMBER',
+    GUEST: 'GUEST',
+  },
+}));
+
 jest.mock(
   'src/shared/enums/conversation-type.enum',
   () => ({
@@ -43,7 +56,7 @@ import { ConversationService } from './conversation.service';
 import { ConversationMembersService } from '../conversation_members/conversation_members.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { ConversationType } from '../../shared/enums/conversation-type.enum';
-import { ConversationRole } from '../../shared/enums/conversation-role.enum';
+import { ConversationRole } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 
 describe('ConversationService', () => {
@@ -136,7 +149,6 @@ describe('ConversationService', () => {
         name: 'general',
         description: 'Team updates',
         isPrivate: false,
-        isArchived: false,
         createdBy: 'user-id',
       },
     });
@@ -145,7 +157,7 @@ describe('ConversationService', () => {
         id: 'conversation-member-id',
         conversationId: 'conversation-id',
         userId: 'user-id',
-        role: ConversationRole.Admin,
+        role: ConversationRole.ADMIN,
       },
     });
     expect(result).toEqual({
@@ -306,6 +318,7 @@ describe('ConversationService', () => {
         id: 'conversation-id',
         isDeleted: false,
         isPrivate: true,
+        type: 'CHANNEL',
       },
       select: {
         id: true,
@@ -332,6 +345,10 @@ describe('ConversationService', () => {
       id: 'conversation-id',
       isPrivate: true,
     });
+    // actor is Admin, target is Member — role hierarchy check passes
+    prisma.conversationMember.findFirst
+      .mockResolvedValueOnce({ id: 'actor-member-id', role: 'ADMIN' }) // actor
+      .mockResolvedValueOnce({ id: 'target-member-id', role: 'MEMBER' }); // target
     conversationMembersService.removeConversationMember.mockResolvedValue({
       id: 'conversation-member-id',
     });
@@ -339,6 +356,7 @@ describe('ConversationService', () => {
     await service.removeMemberFromPrivateChannel(
       'conversation-id',
       'target-user-id',
+      'actor-user-id',
     );
 
     expect(prisma.conversation.findUnique).toHaveBeenCalledWith({
@@ -346,10 +364,9 @@ describe('ConversationService', () => {
         id: 'conversation-id',
         isDeleted: false,
         isPrivate: true,
+        type: 'CHANNEL',
       },
-      select: {
-        id: true,
-      },
+      select: { id: true },
     });
     expect(
       conversationMembersService.removeConversationMember,

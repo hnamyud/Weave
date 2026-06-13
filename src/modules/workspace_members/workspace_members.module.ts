@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { WorkspaceMembersService } from './workspace_members.service';
 import { WorkspaceMembersController } from './workspace_members.controller';
 import { PrismaModule } from 'prisma/prisma.module';
+import { RealtimeModule } from '../realtime/realtime.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, RealtimeModule],
   controllers: [WorkspaceMembersController],
   providers: [WorkspaceMembersService],
   exports: [WorkspaceMembersService],

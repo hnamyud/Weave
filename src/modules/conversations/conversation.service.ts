@@ -1,9 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { ConversationType } from '@prisma/client';
+import { ConversationType, ConversationRole } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { v7 as uuidv7 } from 'uuid';
-import { ConversationRole } from 'src/shared/enums/conversation-role.enum';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { ConversationMembersService } from '../conversation_members/conversation_members.service';
 import {
@@ -34,31 +33,178 @@ export class ConversationService {
   async createConversation(dto: CreateConversationDto, userId: string) {
     await this.ensureActiveWorkspaceMember(dto.workspaceId, userId);
 
+    switch (dto.type) {
+      case ConversationType.DM:
+        return this.createDmConversation(dto, userId);
+      case ConversationType.GROUP_DM:
+        return this.createGroupDmConversation(dto, userId);
+      case ConversationType.CHANNEL:
+        return this.createChannelConversation(dto, userId);
+    }
+  }
+
+  private async createChannelConversation(
+    dto: CreateConversationDto,
+    userId: string,
+  ) {
     const id = uuidv7();
-    return await this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
       const conversation = await tx.conversation.create({
         data: {
-          id: id,
+          id,
           workspaceId: dto.workspaceId,
-          type: dto.type,
+          type: ConversationType.CHANNEL,
           name: dto.name,
           description: dto.description,
           isPrivate: dto.isPrivate,
-          isArchived: dto.isArchived,
           createdBy: userId,
         },
       });
-
       await tx.conversationMember.create({
         data: {
           id: uuidv7(),
           conversationId: id,
-          userId: userId,
-          role: ConversationRole.Admin,
+          userId,
+          role: ConversationRole.ADMIN,
         },
       });
-
       return conversation;
+    });
+  }
+
+  private async createDmConversation(
+    dto: CreateConversationDto,
+    userId: string,
+  ) {
+    // Validate memberIds
+    if (!dto.memberIds || dto.memberIds.length !== 1) {
+      throw new BadRequestException(
+        'DM requires exactly one target user in memberIds',
+      );
+    }
+    const targetId = dto.memberIds[0];
+
+    // No self-DM
+    if (targetId === userId) {
+      throw new BadRequestException('Cannot create a DM with yourself');
+    }
+
+    // Target must be active workspace member
+    await this.ensureActiveWorkspaceMember(dto.workspaceId, targetId);
+
+    // Dedup: return existing active DM between the same pair
+    const existing = await this.findExistingDm(
+      dto.workspaceId,
+      userId,
+      targetId,
+    );
+    if (existing) return existing;
+
+    // Create DM + seed both participants in one transaction
+    const id = uuidv7();
+    return this.prisma.$transaction(async (tx) => {
+      const conversation = await tx.conversation.create({
+        data: {
+          id,
+          workspaceId: dto.workspaceId,
+          type: ConversationType.DM,
+          isPrivate: true,
+          createdBy: userId,
+        },
+      });
+      await tx.conversationMember.createMany({
+        data: [
+          {
+            id: uuidv7(),
+            conversationId: id,
+            userId,
+            role: ConversationRole.ADMIN,
+          },
+          {
+            id: uuidv7(),
+            conversationId: id,
+            userId: targetId,
+            role: ConversationRole.MEMBER,
+          },
+        ],
+      });
+      return conversation;
+    });
+  }
+
+  private async createGroupDmConversation(
+    dto: CreateConversationDto,
+    userId: string,
+  ) {
+    // Validate memberIds
+    if (!dto.memberIds || dto.memberIds.length < 1) {
+      throw new BadRequestException(
+        'GROUP_DM requires at least one other user in memberIds',
+      );
+    }
+
+    // Creator must not be in the list
+    if (dto.memberIds.includes(userId)) {
+      throw new BadRequestException(
+        'memberIds must not include the creator (yourself)',
+      );
+    }
+
+    // All targets must be active workspace members
+    await Promise.all(
+      dto.memberIds.map((id) =>
+        this.ensureActiveWorkspaceMember(dto.workspaceId, id),
+      ),
+    );
+
+    // Create GROUP_DM + seed all participants in one transaction
+    const id = uuidv7();
+    return this.prisma.$transaction(async (tx) => {
+      const conversation = await tx.conversation.create({
+        data: {
+          id,
+          workspaceId: dto.workspaceId,
+          type: ConversationType.GROUP_DM,
+          name: dto.name,
+          isPrivate: true,
+          createdBy: userId,
+        },
+      });
+      await tx.conversationMember.createMany({
+        data: [
+          {
+            id: uuidv7(),
+            conversationId: id,
+            userId,
+            role: ConversationRole.ADMIN,
+          },
+          ...dto.memberIds!.map((memberId) => ({
+            id: uuidv7(),
+            conversationId: id,
+            userId: memberId,
+            role: ConversationRole.MEMBER,
+          })),
+        ],
+      });
+      return conversation;
+    });
+  }
+
+  private async findExistingDm(
+    workspaceId: string,
+    userIdA: string,
+    userIdB: string,
+  ) {
+    return this.prisma.conversation.findFirst({
+      where: {
+        workspaceId,
+        type: ConversationType.DM,
+        isDeleted: false,
+        AND: [
+          { members: { some: { userId: userIdA, leftAt: null } } },
+          { members: { some: { userId: userIdB, leftAt: null } } },
+        ],
+      },
     });
   }
 
@@ -361,6 +507,7 @@ export class ConversationService {
         id: conversationId,
         isDeleted: false,
         isPrivate: true,
+        type: ConversationType.CHANNEL,
       },
       select: {
         id: true,
@@ -380,25 +527,65 @@ export class ConversationService {
     );
   }
 
-  async removeMemberFromPrivateChannel(conversationId: string, userId: string) {
+  async removeMemberFromPrivateChannel(
+    conversationId: string,
+    targetUserId: string,
+    actorId: string,
+  ) {
+    // Self-kick guard: use the leave endpoint instead
+    if (targetUserId === actorId) {
+      throw new BadRequestException(
+        'Cannot kick yourself. Use the leave endpoint instead.',
+      );
+    }
+
+    // Verify channel exists and is a private channel
     const channel = await this.prisma.conversation.findUnique({
       where: {
         id: conversationId,
         isDeleted: false,
         isPrivate: true,
+        type: ConversationType.CHANNEL,
       },
-      select: {
-        id: true,
-      },
+      select: { id: true },
     });
-
     if (!channel) {
       throw new BadRequestException('Channel not found');
     }
 
+    // Load actor and target membership roles in parallel
+    const [actorMember, targetMember] = await Promise.all([
+      this.prisma.conversationMember.findFirst({
+        where: { conversationId, userId: actorId, leftAt: null },
+      }),
+      this.prisma.conversationMember.findFirst({
+        where: { conversationId, userId: targetUserId, leftAt: null },
+      }),
+    ]);
+
+    if (!actorMember) {
+      throw new BadRequestException('You are not a member of this channel');
+    }
+    if (!targetMember) {
+      throw new BadRequestException(
+        'Target user is not a member of this channel',
+      );
+    }
+
+    // Role hierarchy: conversation admin cannot kick another conversation admin
+    if (
+      actorMember.role === ConversationRole.ADMIN &&
+      targetMember.role === ConversationRole.ADMIN
+    ) {
+      throw new BadRequestException(
+        'Cannot kick another admin. Demote them first.',
+      );
+    }
+
+    // removeConversationMember internally enforces last-admin protection (#5)
     return await this.conversationMembersService.removeConversationMember(
       conversationId,
-      userId,
+      targetUserId,
     );
   }
 

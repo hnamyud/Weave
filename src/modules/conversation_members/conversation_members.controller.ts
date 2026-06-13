@@ -24,13 +24,13 @@ export class ConversationMembersController {
   @ResponseMessage('Get conversation members successfully!')
   async getAllMembers(
     @Param('conversationId') conversationId: string,
-    @Query('current') currentPage: string,
-    @Query('pageSize') limit: string,
+    @Query('current') currentPage: string | undefined,
+    @Query('pageSize') limit: string | undefined,
     @GetUser() user: UserInterface,
   ) {
     return this.conversationMembersService.getConversationMembers(
-      +currentPage,
-      +limit,
+      currentPage,
+      limit,
       conversationId,
       user.id,
     );

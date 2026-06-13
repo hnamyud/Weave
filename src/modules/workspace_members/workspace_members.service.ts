@@ -6,10 +6,16 @@ import {
 import { PrismaService } from 'prisma/prisma.service';
 import { WorkspaceRole } from '@prisma/client';
 import { parsePositiveInteger } from '../../common/utils/parse-interger.utils';
+import { PresenceService } from '../realtime/presence.service';
+import { RealtimeService } from '../realtime/realtime.service';
 
 @Injectable()
 export class WorkspaceMembersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly presenceService: PresenceService,
+    private readonly realtimeService: RealtimeService,
+  ) {}
 
   async getWorkspaceMembers(
     currentPage: string | undefined,
@@ -153,7 +159,7 @@ export class WorkspaceMembersService {
       );
     }
 
-    return this.prisma.workspaceMember.update({
+    const updatedMember = await this.prisma.workspaceMember.update({
       where: {
         workspaceId_userId: {
           workspaceId,
@@ -164,6 +170,23 @@ export class WorkspaceMembersService {
         leftAt: new Date(),
       },
     });
+
+    const lastSeenAt = new Date().toISOString();
+    const { affectedSocketIds } =
+      await this.presenceService.forceLeaveWorkspace(userId, workspaceId);
+
+    this.realtimeService.emitUserPresence({
+      userId,
+      workspaceId,
+      status: 'offline',
+      lastSeenAt,
+    });
+    this.realtimeService.forceLeaveWorkspaceRoom(
+      affectedSocketIds,
+      workspaceId,
+    );
+
+    return updatedMember;
   }
 
   async leaveWorkspace(workspaceId: string, userId: string) {

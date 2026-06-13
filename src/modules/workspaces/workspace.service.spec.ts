@@ -20,6 +20,8 @@ jest.mock('uuid', () => ({
 
 import { WorkspaceService } from './workspace.service';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { PresenceService } from '../realtime/presence.service';
+import { RealtimeService } from '../realtime/realtime.service';
 
 describe('WorkspaceService', () => {
   const prisma = {
@@ -37,13 +39,29 @@ describe('WorkspaceService', () => {
       findMany: jest.fn<(args: any) => Promise<any[]>>(),
     },
   };
+  const presenceService = {
+    clearWorkspace:
+      jest.fn<
+        (workspaceId: string) => Promise<{ affectedUserIds: string[] }>
+      >(),
+  };
+  const realtimeService = {
+    emitWorkspaceDeleted: jest.fn<(workspaceId: string) => void>(),
+  };
 
   let service: WorkspaceService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     prisma.$transaction.mockImplementation((callback) => callback(prisma));
-    service = new WorkspaceService(prisma as unknown as PrismaService);
+    presenceService.clearWorkspace.mockResolvedValue({
+      affectedUserIds: ['user-id'],
+    });
+    service = new WorkspaceService(
+      prisma as unknown as PrismaService,
+      presenceService as unknown as PresenceService,
+      realtimeService as unknown as RealtimeService,
+    );
   });
 
   it('creates workspace and owner membership in one transaction', async () => {
@@ -281,6 +299,18 @@ describe('WorkspaceService', () => {
         updatedAt: expect.any(Date),
       },
     });
+    expect(presenceService.clearWorkspace).toHaveBeenCalledWith('workspace-id');
+    expect(realtimeService.emitWorkspaceDeleted).toHaveBeenCalledWith(
+      'workspace-id',
+    );
+    expect(prisma.workspace.update.mock.invocationCallOrder[0]).toBeLessThan(
+      presenceService.clearWorkspace.mock.invocationCallOrder[0],
+    );
+    expect(
+      presenceService.clearWorkspace.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      realtimeService.emitWorkspaceDeleted.mock.invocationCallOrder[0],
+    );
   });
 
   it('rejects delete when workspace does not exist', async () => {
