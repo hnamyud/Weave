@@ -15,6 +15,7 @@ import {
 import { UserInterface } from '../../shared/interfaces/users.interface';
 import { NotificationCursorQueryDto } from './dto/notification-cursor-query.dto';
 import { NotificationSettingsQueryDto } from './dto/notification-settings-query.dto';
+import { NotificationWorkspaceQueryDto } from './dto/notification-workspace-query.dto';
 import { UpdateNotificationSettingsDto } from './dto/update-notification-settings.dto';
 import { NotificationService } from './notification.service';
 
@@ -47,9 +48,9 @@ export class NotificationController {
   @ResponseMessage('Mark all notifications as read successfully!')
   async markAllAsRead(
     @GetUser() user: UserInterface,
-    @Query('workspaceId') workspaceId?: string,
+    @Query() query: NotificationWorkspaceQueryDto,
   ) {
-    return this.notificationService.markAllAsRead(user.id, workspaceId);
+    return this.notificationService.markAllAsRead(user.id, query.workspaceId);
   }
 
   @Delete('notifications/:id')
@@ -67,9 +68,9 @@ export class NotificationController {
   @ResponseMessage('Clear notifications successfully!')
   async clearNotifications(
     @GetUser() user: UserInterface,
-    @Query('workspaceId') workspaceId?: string,
+    @Query() query: NotificationWorkspaceQueryDto,
   ) {
-    return this.notificationService.clearNotifications(user.id, workspaceId);
+    return this.notificationService.clearNotifications(user.id, query.workspaceId);
   }
 
   @Get('notification-settings')

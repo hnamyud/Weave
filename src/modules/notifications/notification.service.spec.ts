@@ -92,7 +92,7 @@ describe('NotificationService', () => {
     prisma.message.findFirst.mockResolvedValue({
       content: 'Can you review this?',
     });
-    prisma.notificationSetting.findUnique.mockResolvedValue({
+    prisma.notificationSetting.upsert.mockResolvedValue({
       notifyMentions: true,
       notifyDirectMessages: true,
       notifyAllMessages: false,
@@ -157,6 +157,62 @@ describe('NotificationService', () => {
     });
   });
 
+  it('truncates a long message preview before sending the email', async () => {
+    const longContent = 'a'.repeat(500);
+    prisma.user.findFirst.mockResolvedValue({
+      id: 'recipient-id',
+      email: 'recipient@example.com',
+    });
+    prisma.workspace.findFirst.mockResolvedValue({
+      id: 'workspace-id',
+      name: 'Engineering',
+    });
+    prisma.conversation.findFirst.mockResolvedValue({ name: 'general' });
+    prisma.message.findFirst.mockResolvedValue({ content: longContent });
+    prisma.notificationSetting.upsert.mockResolvedValue({
+      notifyMentions: true,
+      notifyDirectMessages: true,
+      notifyAllMessages: false,
+      emailNotifications: true,
+      pushNotifications: true,
+    });
+    prisma.notification.create.mockResolvedValue({
+      id: 'notification-id',
+      userId: 'recipient-id',
+      actorId: 'actor-id',
+      workspaceId: 'workspace-id',
+      conversationId: 'conversation-id',
+      messageId: 'message-id',
+      type: NotificationType.Mention,
+      payload: { text: 'mentioned you' },
+      isRead: false,
+      isDeleted: false,
+      createdAt: new Date('2026-05-29T00:00:00.000Z'),
+      actor: {
+        id: 'actor-id',
+        username: 'alice',
+        displayName: 'Alice',
+        avatarUrl: null,
+      },
+    });
+
+    await service.createNotification({
+      userId: 'recipient-id',
+      actorId: 'actor-id',
+      workspaceId: 'workspace-id',
+      conversationId: 'conversation-id',
+      messageId: 'message-id',
+      type: NotificationType.Mention,
+      payload: { text: 'mentioned you' },
+    });
+
+    const emailArgs =
+      mailService.sendMentionNotificationEmail.mock.calls[0][0] as {
+        messagePreview: string;
+      };
+    expect(emailArgs.messagePreview).toBe(`${'a'.repeat(200)}…`);
+  });
+
   it('skips self notifications', async () => {
     const result = await service.createNotification({
       userId: 'same-user',
@@ -174,7 +230,7 @@ describe('NotificationService', () => {
   it('skips creation when settings disable the notification type', async () => {
     prisma.user.findFirst.mockResolvedValue({ id: 'recipient-id' });
     prisma.workspace.findFirst.mockResolvedValue({ id: 'workspace-id' });
-    prisma.notificationSetting.findUnique.mockResolvedValue({
+    prisma.notificationSetting.upsert.mockResolvedValue({
       notifyMentions: false,
       notifyDirectMessages: true,
       notifyAllMessages: false,
@@ -204,7 +260,7 @@ describe('NotificationService', () => {
       id: 'workspace-id',
       name: 'Engineering',
     });
-    prisma.notificationSetting.findUnique.mockResolvedValue({
+    prisma.notificationSetting.upsert.mockResolvedValue({
       notifyMentions: true,
       notifyDirectMessages: true,
       notifyAllMessages: false,
@@ -388,8 +444,7 @@ describe('NotificationService', () => {
 
   it('creates default notification settings when missing', async () => {
     prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'member-id' });
-    prisma.notificationSetting.findUnique.mockResolvedValue(null);
-    prisma.notificationSetting.create.mockResolvedValue({
+    prisma.notificationSetting.upsert.mockResolvedValue({
       id: 'setting-id',
       userId: 'user-id',
       workspaceId: 'workspace-id',
@@ -405,8 +460,15 @@ describe('NotificationService', () => {
       'user-id',
     );
 
-    expect(prisma.notificationSetting.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
+    expect(prisma.notificationSetting.upsert).toHaveBeenCalledWith({
+      where: {
+        userId_workspaceId: {
+          userId: 'user-id',
+          workspaceId: 'workspace-id',
+        },
+      },
+      update: {},
+      create: expect.objectContaining({
         userId: 'user-id',
         workspaceId: 'workspace-id',
         notifyMentions: true,

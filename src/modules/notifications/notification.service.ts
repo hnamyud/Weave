@@ -83,7 +83,7 @@ export class NotificationService {
         type: input.type,
         payload: input.payload,
       },
-      include: this.buildNotificationInclude(),
+      include: notificationInclude,
     });
 
     const response = this.mapNotification(notification);
@@ -115,7 +115,7 @@ export class NotificationService {
       where,
       take: limit,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      include: this.buildNotificationInclude(),
+      include: notificationInclude,
     });
 
     return this.buildCursorResponse(notifications, limit);
@@ -246,21 +246,15 @@ export class NotificationService {
   }
 
   private async getOrCreateSettingsRecord(workspaceId: string, userId: string) {
-    const existing = await this.prisma.notificationSetting.findUnique({
+    return this.prisma.notificationSetting.upsert({
       where: {
         userId_workspaceId: {
           userId,
           workspaceId,
         },
       },
-    });
-
-    if (existing) {
-      return existing;
-    }
-
-    return this.prisma.notificationSetting.create({
-      data: {
+      update: {},
+      create: {
         id: uuidv7(),
         userId,
         workspaceId,
@@ -291,10 +285,6 @@ export class NotificationService {
     }
   }
 
-  private buildNotificationInclude() {
-    return notificationInclude;
-  }
-
   private async sendMentionEmailIfNeeded({
     input,
     notification,
@@ -318,9 +308,10 @@ export class NotificationService {
     const conversationName = input.conversationId
       ? await this.getConversationName(input.conversationId)
       : 'conversation';
-    const messagePreview = input.messageId
+    const rawPreview = input.messageId
       ? await this.getMessagePreview(input.messageId)
       : this.getPayloadText(input.payload);
+    const messagePreview = this.truncatePreview(rawPreview);
 
     await this.mailService.sendMentionNotificationEmail({
       email: recipientEmail,
@@ -374,6 +365,10 @@ export class NotificationService {
     }
 
     return 'You were mentioned in a message.';
+  }
+
+  private truncatePreview(text: string, maxLength = 200) {
+    return text.length > maxLength ? `${text.slice(0, maxLength)}…` : text;
   }
 
   private mapNotification(
