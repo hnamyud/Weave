@@ -39,19 +39,19 @@ Tất cả endpoint đều cần Bearer JWT.
 
 - `workspaceId`: UUID, optional
 
-## GET /api/v1/notification-settings
+## GET /api/v1/workspaces/:workspaceId/notification-settings
 
 - Mô tả: Lấy notification settings của user trong workspace.
 
-### Query params
+### Path params
 
 - `workspaceId`: UUID, bắt buộc
 
-## PATCH /api/v1/notification-settings
+## PATCH /api/v1/workspaces/:workspaceId/notification-settings
 
 - Mô tả: Cập nhật notification settings của user trong workspace.
 
-### Query params
+### Path params
 
 - `workspaceId`: UUID, bắt buộc
 

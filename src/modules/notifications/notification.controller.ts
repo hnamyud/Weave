@@ -3,6 +3,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Query,
   Body,
@@ -14,7 +15,6 @@ import {
 } from '../../common/decorators/customize.decorator';
 import { UserInterface } from '../../shared/interfaces/users.interface';
 import { NotificationCursorQueryDto } from './dto/notification-cursor-query.dto';
-import { NotificationSettingsQueryDto } from './dto/notification-settings-query.dto';
 import { NotificationWorkspaceQueryDto } from './dto/notification-workspace-query.dto';
 import { UpdateNotificationSettingsDto } from './dto/update-notification-settings.dto';
 import { NotificationService } from './notification.service';
@@ -73,30 +73,30 @@ export class NotificationController {
     return this.notificationService.clearNotifications(user.id, query.workspaceId);
   }
 
-  @Get('notification-settings')
+  @Get('workspaces/:workspaceId/notification-settings')
   @ApiBearerAuth('access-token')
   @ResponseMessage('Get notification settings successfully!')
   async getNotificationSettings(
     @GetUser() user: UserInterface,
-    @Query() query: NotificationSettingsQueryDto,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
   ) {
     return this.notificationService.getNotificationSettings(
-      query.workspaceId,
+      workspaceId,
       user.id,
     );
   }
 
-  @Patch('notification-settings')
+  @Patch('workspaces/:workspaceId/notification-settings')
   @ApiBearerAuth('access-token')
   @ApiBody({ type: UpdateNotificationSettingsDto })
   @ResponseMessage('Update notification settings successfully!')
   async updateNotificationSettings(
     @GetUser() user: UserInterface,
-    @Query() query: NotificationSettingsQueryDto,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Body() dto: UpdateNotificationSettingsDto,
   ) {
     return this.notificationService.updateNotificationSettings(
-      query.workspaceId,
+      workspaceId,
       user.id,
       dto,
     );
