@@ -117,6 +117,22 @@ Token cũng có thể đi qua header `Authorization: Bearer <token>` hoặc quer
 
 - Payload có cùng shape với `pinned:added`.
 
+### `reaction:added`
+
+```json
+{
+  "conversationId": "conversation-id",
+  "messageId": "message-id",
+  "userId": "user-id",
+  "emoji": "👍",
+  "user": {}
+}
+```
+
+### `reaction:removed`
+
+- Payload có cùng shape với `reaction:added`.
+
 ### `typing`
 
 ```json
@@ -129,8 +145,6 @@ Token cũng có thể đi qua header `Authorization: Bearer <token>` hoặc quer
 
 ## Event được định nghĩa nhưng chưa thấy emit trong gateway/service này
 
-- `reaction:added`
-- `reaction:removed`
 - `conversation:updated`
 - `conversation:deleted`
 - `member:joined`
