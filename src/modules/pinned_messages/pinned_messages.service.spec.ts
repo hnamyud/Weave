@@ -33,8 +33,9 @@ describe('PinnedMessagesService', () => {
     },
     pinnedMessage: {
       findFirst: jest.fn<(args: any) => Promise<any>>(),
+      findUnique: jest.fn<(args: any) => Promise<any>>(),
       findMany: jest.fn<(args: any) => Promise<any[]>>(),
-      upsert: jest.fn<(args: any) => Promise<any>>(),
+      create: jest.fn<(args: any) => Promise<any>>(),
       delete: jest.fn<(args: any) => Promise<any>>(),
     },
   };
@@ -62,7 +63,8 @@ describe('PinnedMessagesService', () => {
         isArchived: false,
       },
     });
-    prisma.pinnedMessage.upsert.mockResolvedValue({
+    prisma.pinnedMessage.findUnique.mockResolvedValue(null);
+    prisma.pinnedMessage.create.mockResolvedValue({
       id: 'pinned-message-id',
       messageId: 'message-id',
       conversationId: 'conversation-id',
@@ -92,10 +94,8 @@ describe('PinnedMessagesService', () => {
         conversation: true,
       },
     });
-    expect(prisma.pinnedMessage.upsert).toHaveBeenCalledWith({
-      where: { messageId: 'message-id' },
-      update: {},
-      create: {
+    expect(prisma.pinnedMessage.create).toHaveBeenCalledWith({
+      data: {
         id: 'pinned-message-id',
         messageId: 'message-id',
         conversationId: 'conversation-id',
@@ -107,6 +107,28 @@ describe('PinnedMessagesService', () => {
       messageId: 'message-id',
       pinnedBy: 'user-id',
     });
+    expect(result).toMatchObject({ id: 'pinned-message-id' });
+  });
+
+  it('does not re-create or re-emit when the message is already pinned', async () => {
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'message-id',
+      conversationId: 'conversation-id',
+      conversation: {
+        isArchived: false,
+      },
+    });
+    prisma.pinnedMessage.findUnique.mockResolvedValue({
+      id: 'pinned-message-id',
+      messageId: 'message-id',
+      conversationId: 'conversation-id',
+      pinnedBy: 'other-user-id',
+    });
+
+    const result = await service.pinMessage('message-id', 'user-id');
+
+    expect(prisma.pinnedMessage.create).not.toHaveBeenCalled();
+    expect(realtimeService.emitPinnedMessageAdded).not.toHaveBeenCalled();
     expect(result).toMatchObject({ id: 'pinned-message-id' });
   });
 
@@ -123,7 +145,7 @@ describe('PinnedMessagesService', () => {
       BadRequestException,
     );
 
-    expect(prisma.pinnedMessage.upsert).not.toHaveBeenCalled();
+    expect(prisma.pinnedMessage.create).not.toHaveBeenCalled();
   });
 
   it('unpins a message for an active conversation member regardless of who pinned it', async () => {

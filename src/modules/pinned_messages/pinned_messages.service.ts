@@ -56,10 +56,16 @@ export class PinnedMessagesService {
       throw new BadRequestException('Conversation is archived');
     }
 
-    const pinnedMessage = await this.prisma.pinnedMessage.upsert({
+    const existingPinnedMessage = await this.prisma.pinnedMessage.findUnique({
       where: { messageId },
-      update: {},
-      create: {
+    });
+
+    if (existingPinnedMessage) {
+      return existingPinnedMessage;
+    }
+
+    const pinnedMessage = await this.prisma.pinnedMessage.create({
+      data: {
         id: uuidv7(),
         messageId,
         conversationId: message.conversationId,

@@ -30,7 +30,8 @@ describe('FileService', () => {
   const storage = {
     createPresignedUpload:
       jest.fn<(storageKey: string, fileType: string) => Promise<any>>(),
-    headObject: jest.fn<(storageKey: string) => Promise<void>>(),
+    headObject:
+      jest.fn<(storageKey: string) => Promise<{ ContentLength?: number }>>(),
   };
 
   const configService = {
@@ -192,6 +193,7 @@ describe('FileService', () => {
 
   it('verifies a newly uploaded object before creating a file object', async () => {
     prisma.fileObject.findUnique.mockResolvedValue(null);
+    storage.headObject.mockResolvedValue({ ContentLength: 123 });
     prisma.fileObject.create.mockResolvedValue({
       id: 'new-file-object-id',
       storageKey:
@@ -245,5 +247,28 @@ describe('FileService', () => {
         prisma as unknown as PrismaService,
       ),
     ).rejects.toThrow(NotFoundException);
+  });
+
+  it('rejects uploaded objects whose size does not match metadata', async () => {
+    prisma.fileObject.findUnique.mockResolvedValue(null);
+    storage.headObject.mockResolvedValue({ ContentLength: 999 });
+
+    await expect(
+      service.ensureFileObject(
+        {
+          metadata: {
+            fileHash: 'a'.repeat(64),
+            fileName: 'report.pdf',
+            fileSize: 123,
+            fileType: 'application/pdf',
+            storageKey:
+              'files/sha256/aa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          },
+          uploaderId: 'user-id',
+        },
+        prisma as unknown as PrismaService,
+      ),
+    ).rejects.toThrow(BadRequestException);
+    expect(prisma.fileObject.create).not.toHaveBeenCalled();
   });
 });

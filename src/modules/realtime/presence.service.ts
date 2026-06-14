@@ -61,53 +61,63 @@ export class PresenceService {
    * 1. SREM presence:user:{userId} socketId
    * 2. DEL  presence:socket:{socketId}
    * 3. SMEMBERS presence:user:{userId}  — get remaining socketIds
-   * 4. If empty → isLastPresenceInWorkspace = true → SREM workspace set
+   * 4. If empty → user should leave the workspace set
    * 5. Else iterate remaining sockets (pipeline HGET) to check if any
-   *    still belong to this workspaceId. If none → SREM workspace set.
+   *    still belong to this workspaceId. If none → user should leave.
    *
-   * Returns { isLastPresenceInWorkspace } so the gateway knows whether
-   * to broadcast a USER_PRESENCE offline event.
+   * The offline decision is gated on the atomic SREM return value, NOT on the
+   * "no sockets remaining" read above. SREM returns 1 only for the caller that
+   * actually removed the user from the workspace set, so isLastPresenceInWorkspace
+   * is exactly-once even when handleLeave runs concurrently for the same socket
+   * (e.g. a workspace switch racing the socket disconnect). This is what prevents
+   * a double USER_PRESENCE offline broadcast.
    */
   async handleLeave(
     userId: string,
     socketId: string,
     workspaceId: string,
   ): Promise<{ isLastPresenceInWorkspace: boolean }> {
-    // Step 1 & 2: remove socket from user set and delete metadata
+    // Remove socket from user set and delete metadata
     await this.redis
       .pipeline()
       .srem(KEYS.userSockets(userId), socketId)
       .del(KEYS.socketMeta(socketId))
       .exec();
 
-    // Step 3: get remaining socket IDs for this user
+    // Get remaining socket IDs for this user
     const remainingSocketIds = await this.redis.smembers(
       KEYS.userSockets(userId),
     );
 
+    let shouldLeaveWorkspace: boolean;
     if (remainingSocketIds.length === 0) {
-      // Step 4: no sockets left at all — definitely last presence
-      await this.redis.srem(KEYS.workspaceOnline(workspaceId), userId);
-      return { isLastPresenceInWorkspace: true };
+      // No sockets left at all
+      shouldLeaveWorkspace = true;
+    } else {
+      // Check if any remaining socket belongs to this workspace
+      const pipeline = this.redis.pipeline();
+      for (const sid of remainingSocketIds) {
+        pipeline.hget(KEYS.socketMeta(sid), 'workspaceId');
+      }
+      const metaResults = await pipeline.exec();
+
+      const stillInWorkspace = metaResults?.some(
+        ([err, val]) => !err && val === workspaceId,
+      );
+      shouldLeaveWorkspace = !stillInWorkspace;
     }
 
-    // Step 5: check if any remaining socket belongs to this workspace
-    const pipeline = this.redis.pipeline();
-    for (const sid of remainingSocketIds) {
-      pipeline.hget(KEYS.socketMeta(sid), 'workspaceId');
+    if (!shouldLeaveWorkspace) {
+      return { isLastPresenceInWorkspace: false };
     }
-    const metaResults = await pipeline.exec();
 
-    const stillInWorkspace = metaResults?.some(
-      ([err, val]) => !err && val === workspaceId,
+    // Atomic gate: only the caller whose SREM actually removed the user reports
+    // isLast=true, guaranteeing a single offline broadcast under concurrency.
+    const removed = await this.redis.srem(
+      KEYS.workspaceOnline(workspaceId),
+      userId,
     );
-
-    if (!stillInWorkspace) {
-      await this.redis.srem(KEYS.workspaceOnline(workspaceId), userId);
-      return { isLastPresenceInWorkspace: true };
-    }
-
-    return { isLastPresenceInWorkspace: false };
+    return { isLastPresenceInWorkspace: removed === 1 };
   }
 
   /**

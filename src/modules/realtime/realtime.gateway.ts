@@ -49,6 +49,12 @@ type ConversationAccess = {
   };
 };
 
+/**
+ * SINGLE-NODE ONLY. Uses Socket.IO's default in-memory adapter, so every
+ * `server.to(room).emit(...)` only reaches sockets on this process. Presence
+ * state is shared via Redis (PresenceService) but broadcasts are not. Scaling
+ * past one instance requires @socket.io/redis-adapter (see InterServerEvents).
+ */
 @WebSocketGateway({
   cors: { origin: process.env.FE_DOMAIN ?? '*', credentials: true },
   namespace: '/',

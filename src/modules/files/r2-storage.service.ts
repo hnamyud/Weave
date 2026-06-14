@@ -50,7 +50,7 @@ export class R2StorageService {
   }
 
   async headObject(storageKey: string) {
-    await this.client.send(
+    return this.client.send(
       new HeadObjectCommand({
         Bucket: this.bucketName,
         Key: storageKey,

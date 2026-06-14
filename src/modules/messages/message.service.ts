@@ -102,6 +102,10 @@ export class MessageService {
   ): Promise<MessageResponse> {
     const message = await this.ensureWritableMessage(messageId, userId);
 
+    if (message.senderId !== userId) {
+      throw new ForbiddenException('Only the sender can edit this message');
+    }
+
     if (message.conversation.isArchived) {
       throw new BadRequestException(
         'Cannot edit a message in an archived conversation',
@@ -112,10 +116,6 @@ export class MessageService {
 
     if (!content) {
       throw new BadRequestException('Message content cannot be blank');
-    }
-
-    if (message.senderId !== userId) {
-      throw new ForbiddenException('Only the sender can edit this message');
     }
 
     const shouldSyncMentions = dto.mentionedUserIds !== undefined;
@@ -222,20 +222,54 @@ export class MessageService {
       );
     }
 
-    const deletedMessage = await this.prisma.message.update({
-      where: {
-        id: messageId,
+    const { deletedMessage, removedPin } = await this.prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        const existingPin = await tx.pinnedMessage.findUnique({
+          where: {
+            messageId,
+          },
+          select: {
+            pinnedBy: true,
+          },
+        });
+
+        if (existingPin) {
+          await tx.pinnedMessage.delete({
+            where: {
+              messageId,
+            },
+          });
+        }
+
+        const deletedMessage = await tx.message.update({
+          where: {
+            id: messageId,
+          },
+          data: {
+            isDeleted: true,
+            deletedAt: new Date(),
+          },
+        });
+
+        return {
+          deletedMessage,
+          removedPin: existingPin,
+        };
       },
-      data: {
-        isDeleted: true,
-        deletedAt: new Date(),
-      },
-    });
+    );
 
     this.realtimeService.emitMessageDeleted({
       id: messageId,
       conversationId: message.conversationId,
     });
+
+    if (removedPin) {
+      this.realtimeService.emitPinnedMessageRemoved({
+        conversationId: message.conversationId,
+        messageId,
+        pinnedBy: removedPin.pinnedBy,
+      });
+    }
 
     return deletedMessage;
   }

@@ -124,8 +124,18 @@ export class FileService {
     }
 
     try {
-      await this.storageService.headObject(expectedStorageKey);
-    } catch {
+      const head = await this.storageService.headObject(expectedStorageKey);
+
+      if (head.ContentLength !== params.metadata.fileSize) {
+        throw new BadRequestException(
+          'Uploaded file size does not match metadata',
+        );
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
       throw new NotFoundException(
         'Uploaded file object was not found in storage',
       );

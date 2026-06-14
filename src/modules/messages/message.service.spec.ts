@@ -54,6 +54,10 @@ describe('MessageService', () => {
       deleteMany: jest.fn<(args: any) => Promise<any>>(),
       findMany: jest.fn<(args: any) => Promise<any[]>>(),
     },
+    pinnedMessage: {
+      findUnique: jest.fn<(args: any) => Promise<any>>(),
+      delete: jest.fn<(args: any) => Promise<any>>(),
+    },
     $transaction:
       jest.fn<(callback: (tx: any) => Promise<any>) => Promise<any>>(),
   };
@@ -76,6 +80,7 @@ describe('MessageService', () => {
     emitMessageUpdated: jest.fn<(message: unknown) => void>(),
     emitMessageDeleted:
       jest.fn<(payload: { id: string; conversationId: string }) => void>(),
+    emitPinnedMessageRemoved: jest.fn<(payload: unknown) => void>(),
   };
 
   const notificationService = {
@@ -97,6 +102,8 @@ describe('MessageService', () => {
     prisma.mention.createMany.mockResolvedValue({ count: 0 });
     prisma.mention.deleteMany.mockResolvedValue({ count: 0 });
     prisma.mention.findMany.mockResolvedValue([]);
+    prisma.pinnedMessage.findUnique.mockResolvedValue(null);
+    prisma.pinnedMessage.delete.mockResolvedValue({});
     notificationService.createNotification.mockResolvedValue({
       id: 'notification-id',
     });
@@ -812,6 +819,45 @@ describe('MessageService', () => {
     expect(realtimeService.emitMessageDeleted).toHaveBeenCalledWith({
       id: 'message-id',
       conversationId: 'conversation-id',
+    });
+  });
+
+  it('removes the pinned record and emits removal when deleting a pinned message', async () => {
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'message-id',
+      senderId: 'user-id',
+      isDeleted: false,
+      conversationId: 'conversation-id',
+      parentId: null,
+      conversation: {
+        workspaceId: 'workspace-id',
+        isArchived: false,
+        members: [{ role: 'MEMBER' }],
+        workspace: {
+          members: [{ role: 'MEMBER' }],
+        },
+      },
+    });
+    prisma.pinnedMessage.findUnique.mockResolvedValue({
+      pinnedBy: 'other-user-id',
+    });
+    prisma.message.update.mockResolvedValue({
+      id: 'message-id',
+      isDeleted: true,
+      deletedAt: new Date('2026-05-29T01:00:00.000Z'),
+    });
+
+    await service.deleteMessage('message-id', 'user-id');
+
+    expect(prisma.pinnedMessage.delete).toHaveBeenCalledWith({
+      where: {
+        messageId: 'message-id',
+      },
+    });
+    expect(realtimeService.emitPinnedMessageRemoved).toHaveBeenCalledWith({
+      conversationId: 'conversation-id',
+      messageId: 'message-id',
+      pinnedBy: 'other-user-id',
     });
   });
 
