@@ -4,7 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { RedisModule } from 'src/common/cache/redis.module';
 import { BullModule } from '@nestjs/bullmq';
 import { MailerModule } from '@nestjs-modules/mailer';
-import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.adapter';
 import { MailProcessor } from './mail.processor';
 import { join } from 'path';
 import { MailController } from './mail.controller';

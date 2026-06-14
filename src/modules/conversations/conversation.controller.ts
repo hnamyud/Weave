@@ -98,6 +98,21 @@ export class ConversationController {
     );
   }
 
+  @Get('/workspace/:workspaceId')
+  @UseGuards(WorkspaceMemberGuard)
+  @RequireWorkspacePermission(Action.Read)
+  @ApiBearerAuth('access-token')
+  @ResponseMessage('Get conversations by workspace successfully!')
+  async getConversationsByWorkspace(
+    @Param('workspaceId') workspaceId: string,
+    @GetUser() user: UserInterface,
+  ) {
+    return this.conversationService.getConversationsByWorkspace(
+      workspaceId,
+      user.id,
+    );
+  }
+
   @Get('/:id')
   @UseGuards(ConversationMemberGuard)
   @RequireConversationPermission(Action.Read)

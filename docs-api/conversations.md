@@ -60,6 +60,31 @@ Tất cả endpoint đều cần Bearer JWT.
 - Policy: `RequireConversationPermission(Action.Kick)`
 - Mô tả: Xóa member khỏi private channel.
 
+## GET /api/v1/conversation/workspace/:workspaceId
+
+- Guard: `WorkspaceMemberGuard`
+- Policy: `RequireWorkspacePermission(Action.Read)`
+- Mô tả: Lấy danh sách conversation mà user là member trong workspace (dùng cho sidebar). Public và private channel hiện như nhau; phân biệt qua `isPrivate`.
+
+### Response
+
+```json
+[
+  {
+    "id": "0190f3a1-1c2b-7d4e-9f10-2a3b4c5d6e7f",
+    "name": "backend",
+    "type": "CHANNEL",
+    "isPrivate": false
+  }
+]
+```
+
+### Ghi chú
+
+- Sắp xếp theo `name` tăng dần (A→Z).
+- Trả về mảng rỗng nếu user chưa join conversation nào.
+- Cần thông tin chi tiết (số member, ...) thì gọi `GET /api/v1/conversation/:id`.
+
 ## GET /api/v1/conversation/:id
 
 - Guard: `ConversationMemberGuard`

@@ -56,6 +56,7 @@ describe('ConversationController metadata', () => {
   const service = {
     createConversation: jest.fn(),
     getConversationById: jest.fn(),
+    getConversationsByWorkspace: jest.fn(),
     updateConversation: jest.fn(),
     archiveConversation: jest.fn(),
     unarchiveConversation: jest.fn(),
@@ -114,6 +115,29 @@ describe('ConversationController metadata', () => {
     await controller.createConversation(dto, user);
 
     expect(service.createConversation).toHaveBeenCalledWith(dto, 'user-id');
+  });
+
+  it('uses workspace-based read policy for GET conversations by workspace', () => {
+    const metadata = getPolicyMetadata('getConversationsByWorkspace') as Array<{
+      action: Action;
+    }>;
+
+    expect(metadata).toHaveLength(1);
+    expect(metadata[0].action).toBe(Action.Read);
+  });
+
+  it('passes workspace id and authenticated user id to the service', async () => {
+    const controller = new ConversationController(
+      service as unknown as ConversationService,
+    );
+    const user: AuthenticatedUser = { id: 'user-id' };
+
+    await controller.getConversationsByWorkspace('workspace-id', user);
+
+    expect(service.getConversationsByWorkspace).toHaveBeenCalledWith(
+      'workspace-id',
+      'user-id',
+    );
   });
 
   it('passes private channel add member input to the service', async () => {
