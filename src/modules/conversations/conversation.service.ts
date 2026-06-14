@@ -386,6 +386,30 @@ export class ConversationService {
     }));
   }
 
+  async getConversationsByWorkspace(workspaceId: string, userId: string) {
+    return await this.prisma.conversation.findMany({
+      where: {
+        workspaceId,
+        isDeleted: false,
+        members: {
+          some: {
+            userId,
+            leftAt: null,
+          },
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        isPrivate: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+  }
+
   private async getConversationMemberContext(
     conversationId: string,
     userId: string,
